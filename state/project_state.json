@@ -5,20 +5,43 @@
   "owner": "cryptoradio7",
   "repo": "lemonde6",
   "git_url": "https://github.com/cryptoradio7/lemonde6.git",
-  "phase": "phase_1_architecte",
-  "phase_status": "in_progress",
+  "kanban_project_id": 4,
+  "kanban_node_id": "PVT_kwHODSHz5c4BSzQH",
+  "phase": "phase_3_dev",
+  "phase_status": "pending",
   "mode": "autonome",
   "qualite": "production",
   "reference_url": "https://www.lemonde.fr",
   "phases": {
     "phase_0_cadrage": { "status": "done", "outputs": ["BRIEF.md"] },
-    "phase_1_architecte": { "status": "in_progress", "outputs": [] },
-    "phase_2_ba": { "status": "pending", "outputs": [] },
+    "phase_1_architecte": {
+      "status": "done",
+      "outputs": ["ARCHITECTURE.md", "repo:cryptoradio7/lemonde6", "kanban:4"]
+    },
+    "phase_2_ba": {
+      "status": "done",
+      "outputs": ["SPECS_FONCTIONNELLES.md", "REVERSE_ENGINEERING.md", "issues:1-14"]
+    },
     "phase_3_dev": { "status": "pending", "outputs": [] },
     "phase_4_cyber": { "status": "pending", "outputs": [] },
     "phase_5_devops": { "status": "pending", "outputs": [] }
   },
-  "stories": [],
+  "stories": [
+    { "id": 1, "title": "Page d'accueil", "issue_number": 1, "status": "backlog", "complexity": "L", "priority": "P1" },
+    { "id": 2, "title": "Page détail article", "issue_number": 2, "status": "backlog", "complexity": "M", "priority": "P1" },
+    { "id": 3, "title": "Navigation catégorie", "issue_number": 3, "status": "backlog", "complexity": "M", "priority": "P1" },
+    { "id": 4, "title": "Recherche full-text", "issue_number": 4, "status": "backlog", "complexity": "M", "priority": "P1" },
+    { "id": 5, "title": "Inscription utilisateur", "issue_number": 5, "status": "backlog", "complexity": "M", "priority": "P1" },
+    { "id": 6, "title": "Connexion/Déconnexion", "issue_number": 6, "status": "backlog", "complexity": "M", "priority": "P1" },
+    { "id": 7, "title": "Newsletter RGPD", "issue_number": 7, "status": "backlog", "complexity": "M", "priority": "P2" },
+    { "id": 8, "title": "Partage réseaux sociaux", "issue_number": 8, "status": "backlog", "complexity": "S", "priority": "P2" },
+    { "id": 9, "title": "SEO complet", "issue_number": 9, "status": "backlog", "complexity": "S", "priority": "P1" },
+    { "id": 10, "title": "Admin CRUD articles", "issue_number": 10, "status": "backlog", "complexity": "L", "priority": "P2" },
+    { "id": 11, "title": "Admin catégories", "issue_number": 11, "status": "backlog", "complexity": "M", "priority": "P2" },
+    { "id": 12, "title": "Page auteur", "issue_number": 12, "status": "backlog", "complexity": "S", "priority": "P2" },
+    { "id": 13, "title": "Articles les plus lus", "issue_number": 13, "status": "backlog", "complexity": "S", "priority": "P3" },
+    { "id": 14, "title": "Seed données démo", "issue_number": 14, "status": "backlog", "complexity": "M", "priority": "P1" }
+  ],
   "retries": {},
-  "derniere_maj": "2026-03-25T16:22:00Z"
+  "derniere_maj": "2026-03-25T19:30:00Z"
 }
