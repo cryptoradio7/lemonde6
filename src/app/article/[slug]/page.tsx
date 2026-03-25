@@ -138,7 +138,12 @@ export default async function ArticlePage({ params }: Props) {
             </figure>
           )}
 
-          {/* Content */}
+          {/* Content
+              SECURITY NOTE: dangerouslySetInnerHTML is used here to render rich HTML content.
+              Mitigation: content is only writable by authenticated admins/journalists (role check
+              on POST/PUT /api/articles). Future improvement: sanitize with DOMPurify or
+              sanitize-html before storage, and add a strict Content-Security-Policy header.
+          */}
           <div
             className="prose prose-lg max-w-none font-serif leading-relaxed [&_h2]:font-serif [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-4 [&_h2]:text-[#1A1A1A] [&_p]:mb-4 [&_p]:text-gray-800 [&_p]:leading-relaxed"
             dangerouslySetInnerHTML={{ __html: article.content }}

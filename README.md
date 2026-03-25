@@ -29,9 +29,10 @@ Site d'information grand public inspiré de [Le Monde](https://www.lemonde.fr) �
 
 ### Prérequis
 
-- Node.js 20+
-- npm 10+
+- Node.js 18+ (LTS recommandé : 20.x)
+- npm 9+
 - Git
+- PostgreSQL 14+ (production) ou SQLite (développement local — inclus via Prisma)
 
 ### Étapes
 
@@ -173,6 +174,41 @@ model Newsletter { id, email, subscribed, token }
 | Documentation Next.js | https://nextjs.org/docs |
 | Documentation Prisma | https://www.prisma.io/docs |
 | Documentation NextAuth.js | https://authjs.dev |
+
+## Deploy Vercel
+
+```bash
+# Installer Vercel CLI
+npm i -g vercel
+
+# Déployer en production
+vercel --prod
+```
+
+Variables à configurer dans le dashboard Vercel (Settings > Environment Variables) :
+- `DATABASE_URL` — URL PostgreSQL (ex: Neon, Supabase, Railway)
+- `NEXTAUTH_SECRET` — `openssl rand -base64 32`
+- `NEXTAUTH_URL` — URL publique de votre déploiement (ex: `https://lemonde6.vercel.app`)
+
+Après le premier déploiement, exécuter la migration :
+```bash
+DATABASE_URL="postgresql://..." npx prisma migrate deploy
+```
+
+## Sécurité
+
+- Les mots de passe sont hachés avec bcrypt (rounds=10)
+- Les sessions utilisent JWT (NextAuth.js)
+- L'interface admin est protégée par vérification du rôle `admin` côté serveur
+- Les variables sensibles ne doivent jamais être committées — utiliser `.env.local` (ignoré par git)
+- Générer le `NEXTAUTH_SECRET` avec : `openssl rand -base64 32`
+
+## CI/CD
+
+GitHub Actions (`.github/workflows/ci.yml`) :
+- Déclenché sur push et pull_request vers `main`
+- Étapes : lint ESLint → vérification TypeScript (`tsc --noEmit`) → build Next.js
+- Node.js 18
 
 ## Licence
 
