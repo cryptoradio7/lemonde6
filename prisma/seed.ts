@@ -1,762 +1,700 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('Seeding database...');
 
-  // Clean existing data
-  await prisma.articleTag.deleteMany();
-  await prisma.comment.deleteMany();
-  await prisma.article.deleteMany();
-  await prisma.tag.deleteMany();
-  await prisma.category.deleteMany();
-  await prisma.author.deleteMany();
-  await prisma.newsletterSubscriber.deleteMany();
-  await prisma.session.deleteMany();
-  await prisma.account.deleteMany();
-  await prisma.user.deleteMany();
-
-  console.log('Cleaned existing data');
-
-  // Create categories
+  // Categories
   const categories = await Promise.all([
-    prisma.category.create({
-      data: {
-        name: 'Politique',
-        slug: 'politique',
-        description: 'Actualite politique francaise et internationale',
-        color: '#003f8a',
-      },
-    }),
-    prisma.category.create({
-      data: {
-        name: 'Economie',
-        slug: 'economie',
-        description: 'Marches financiers, entreprises et conjoncture',
-        color: '#1a7a3c',
-      },
-    }),
-    prisma.category.create({
-      data: {
-        name: 'Culture',
-        slug: 'culture',
-        description: 'Cinema, litterature, art et spectacles',
-        color: '#8b1a1a',
-      },
-    }),
-    prisma.category.create({
-      data: {
-        name: 'Science',
-        slug: 'science',
-        description: 'Decouverte scientifiques, sante et technologie',
-        color: '#1a5fa0',
-      },
-    }),
-    prisma.category.create({
-      data: {
-        name: 'International',
-        slug: 'international',
-        description: 'Geopolitique, conflits et diplomatie mondiale',
-        color: '#7a3c1a',
-      },
-    }),
+    prisma.category.upsert({ where: { slug: 'international' }, update: {}, create: { name: 'International', slug: 'international', description: 'Actualités du monde entier', color: '#003189' } }),
+    prisma.category.upsert({ where: { slug: 'politique' }, update: {}, create: { name: 'Politique', slug: 'politique', description: 'Vie politique française', color: '#D0021B' } }),
+    prisma.category.upsert({ where: { slug: 'societe' }, update: {}, create: { name: 'Société', slug: 'societe', description: 'Société et culture', color: '#4A4A4A' } }),
+    prisma.category.upsert({ where: { slug: 'economie' }, update: {}, create: { name: 'Économie', slug: 'economie', description: 'Économie et finance', color: '#2E7D32' } }),
+    prisma.category.upsert({ where: { slug: 'culture' }, update: {}, create: { name: 'Culture', slug: 'culture', description: 'Culture et arts', color: '#6A1B9A' } }),
+    prisma.category.upsert({ where: { slug: 'sciences' }, update: {}, create: { name: 'Sciences', slug: 'sciences', description: 'Sciences et technologies', color: '#0277BD' } }),
+    prisma.category.upsert({ where: { slug: 'sport' }, update: {}, create: { name: 'Sport', slug: 'sport', description: 'Actualités sportives', color: '#F57F17' } }),
+    prisma.category.upsert({ where: { slug: 'pixels' }, update: {}, create: { name: 'Pixels', slug: 'pixels', description: 'Numérique et jeux vidéo', color: '#00838F' } }),
   ]);
 
-  console.log(`Created ${categories.length} categories`);
+  const [catInt, catPol, catSoc, catEco, catCul, catSci, catSport, catPix] = categories;
+  console.log('Categories created');
 
-  const [politique, economie, culture, science, international] = categories;
+  // Users (admin + journalists)
+  const hashedAdmin = await bcrypt.hash('Admin1234!', 10);
+  const hashedJournalist = await bcrypt.hash('Journal1234!', 10);
 
-  // Create authors
-  const authors = await Promise.all([
-    prisma.author.create({
-      data: {
-        name: 'Marie Dupont',
-        bio: 'Journaliste politique au Monde6 depuis 2015. Specialiste des institutions europeennes.',
-        avatar: 'https://i.pravatar.cc/150?img=1',
-      },
-    }),
-    prisma.author.create({
-      data: {
-        name: 'Jean-Pierre Laurent',
-        bio: "Correspondant international, expert en geopolitique et conflits. Ancien correspondant en zone de guerre.",
-        avatar: 'https://i.pravatar.cc/150?img=3',
-      },
-    }),
-    prisma.author.create({
-      data: {
-        name: 'Sophie Moreau',
-        bio: 'Redactrice en chef adjointe, specialiste economie et finance. Auteure de plusieurs ouvrages sur la mondialisation.',
-        avatar: 'https://i.pravatar.cc/150?img=5',
-      },
-    }),
-  ]);
-
-  console.log(`Created ${authors.length} authors`);
-
-  const [marie, jeanpierre, sophie] = authors;
-
-  // Create tags
-  const tags = await Promise.all([
-    prisma.tag.create({ data: { name: 'Gouvernement', slug: 'gouvernement' } }),
-    prisma.tag.create({ data: { name: 'Europe', slug: 'europe' } }),
-    prisma.tag.create({ data: { name: 'Inflation', slug: 'inflation' } }),
-    prisma.tag.create({ data: { name: 'Ukraine', slug: 'ukraine' } }),
-    prisma.tag.create({ data: { name: 'Intelligence artificielle', slug: 'intelligence-artificielle' } }),
-    prisma.tag.create({ data: { name: 'Climat', slug: 'climat' } }),
-    prisma.tag.create({ data: { name: 'Sante', slug: 'sante' } }),
-    prisma.tag.create({ data: { name: 'Technologie', slug: 'technologie' } }),
-  ]);
-
-  console.log(`Created ${tags.length} tags`);
-
-  // Create admin user
-  const hashedPassword = await bcrypt.hash('admin123', 12);
-  await prisma.user.create({
-    data: {
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@lemonde6.fr' },
+    update: {},
+    create: {
       email: 'admin@lemonde6.fr',
       name: 'Administrateur',
-      password: hashedPassword,
+      password: hashedAdmin,
       role: 'admin',
+      bio: 'Administrateur du site Le Monde6.',
+      avatar: 'https://i.pravatar.cc/150?img=10',
     },
   });
 
-  console.log('Created admin user');
+  const jean = await prisma.user.upsert({
+    where: { email: 'jean.dupont@lemonde6.fr' },
+    update: {},
+    create: {
+      email: 'jean.dupont@lemonde6.fr',
+      name: 'Jean Dupont',
+      password: hashedJournalist,
+      role: 'journalist',
+      bio: 'Journaliste politique depuis 15 ans. Spécialiste des institutions françaises et de la vie parlementaire. Ancien correspondant à Bruxelles.',
+      avatar: 'https://i.pravatar.cc/150?img=1',
+    },
+  });
 
-  // Articles data
+  const marie = await prisma.user.upsert({
+    where: { email: 'marie.martin@lemonde6.fr' },
+    update: {},
+    create: {
+      email: 'marie.martin@lemonde6.fr',
+      name: 'Marie Martin',
+      password: hashedJournalist,
+      role: 'journalist',
+      bio: 'Grande reporter internationale. Elle a couvert les conflits en Ukraine, au Moyen-Orient et en Afrique subsaharienne. Prix Albert-Londres 2022.',
+      avatar: 'https://i.pravatar.cc/150?img=2',
+    },
+  });
+
+  const paul = await prisma.user.upsert({
+    where: { email: 'paul.leroy@lemonde6.fr' },
+    update: {},
+    create: {
+      email: 'paul.leroy@lemonde6.fr',
+      name: 'Paul Leroy',
+      password: hashedJournalist,
+      role: 'journalist',
+      bio: 'Correspondant économique à Bruxelles depuis 2018. Expert en politiques européennes, marchés financiers et économie numérique.',
+      avatar: 'https://i.pravatar.cc/150?img=3',
+    },
+  });
+
+  console.log('Users created');
+
+  const now = new Date('2026-03-25');
+
   const articlesData = [
-    // === POLITIQUE ===
     {
-      title: "Remaniement ministeriel : le Premier ministre annonce une refonte du gouvernement",
-      slug: "remaniement-ministeriel-premier-ministre-annonce-refonte-gouvernement",
-      excerpt: "Apres plusieurs semaines de speculations, le Premier ministre a officialise ce lundi un remaniement de grande ampleur touchant sept ministeres cles.",
-      content: `Le Premier ministre a convoque une conference de presse exceptionnelle ce lundi matin pour annoncer un remaniement ministeriel d'envergure. Sept portefeuilles sont concernes par cette reorganisation qui vise, selon l'executif, a "redonner de l'elan a l'action gouvernementale".
-
-Les changements les plus notables concernent les ministeres de l'Economie, de l'Education nationale et des Affaires etrangeres. Cette refonte intervient dans un contexte de tensions au sein de la majorite et de sondages defavorables au gouvernement.
-
-L'opposition a immediatement reagit, qualifiant ce remaniement de "replâtrage" sans vision. Le leader du principal parti d'opposition a declare que "ces changements de personnel ne sauraient masquer l'absence de cap politique".
-
-Les nouveaux ministres nommes devront faire face a un agenda charge : budget de l'Etat, reforme des retraites et negociations europeennes sont au programme des prochaines semaines.`,
-      imageUrl: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800',
+      title: "Sommet européen : les dirigeants s'accordent sur un nouveau pacte de sécurité",
+      slug: 'sommet-europeen-pacte-securite',
+      excerpt: "Les vingt-sept États membres ont trouvé un accord historique pour renforcer la coopération militaire et la défense collective européenne.",
+      content: `<p>Après deux jours de négociations intenses à Bruxelles, les dirigeants des vingt-sept États membres de l'Union européenne ont conclu un accord sur un nouveau pacte de sécurité collective, marquant un tournant historique dans la politique de défense européenne.</p>
+<p>Le texte prévoit notamment la création d'un fonds commun de 100 milliards d'euros destiné à financer l'industrie de défense européenne sur les cinq prochaines années, ainsi qu'une coordination renforcée des renseignements militaires.</p>
+<h2>Des négociations difficiles</h2>
+<p>Les discussions ont été particulièrement ardues sur la question de la gouvernance du fonds. Plusieurs États, dont la France et l'Allemagne, ont défendu une approche intergouvernementale, tandis que la Commission européenne plaidait pour davantage d'intégration communautaire.</p>
+<p>C'est finalement un compromis qui a été trouvé, avec un conseil de surveillance mixte composé à la fois de représentants des États membres et de la Commission.</p>
+<h2>Une réponse aux défis géopolitiques</h2>
+<p>Cet accord intervient dans un contexte de tensions accrues aux frontières de l'Europe, notamment en Ukraine et en mer de Chine méridionale. Les dirigeants européens ont unanimement salué cette avancée.</p>
+<p>La signature formelle du traité aura lieu lors du prochain sommet de l'UE prévu à Madrid en juin.</p>`,
+      image: 'https://images.unsplash.com/photo-1519677100203-a0e668c92439?w=800&q=80',
+      imageCaption: 'Les dirigeants européens réunis au Conseil européen à Bruxelles.',
+      imageCredit: 'AFP / Getty Images',
+      badge: 'EXCLUSIF',
+      categoryId: catInt.id,
+      authorId: marie.id,
       featured: true,
-      authorId: marie.id,
-      categoryId: politique.id,
-      tagIds: [tags[0].id, tags[1].id],
+      views: 4250,
+      daysAgo: 1,
     },
     {
-      title: "Elections municipales : la gauche en tete dans les grandes villes selon les premiers sondages",
-      slug: "elections-municipales-gauche-en-tete-grandes-villes-premiers-sondages",
-      excerpt: "A six mois des elections municipales, les instituts de sondage placent les listes de gauche en position favorable dans la plupart des grandes agglomerations francaises.",
-      content: `Les premiers sondages a grande echelle realises en vue des elections municipales du printemps prochain dessinent un paysage politique contrastant avec les scrutins precedents. La gauche rassemblee apparait en tete dans huit des dix plus grandes villes du pays.
-
-Cette dynamique s'explique en partie par la mobilisation autour des enjeux climatiques et sociaux qui cristallisent les preoccupations des electeurs urbains. Les candidats de gauche ont fait de la transition ecologique et des services publics leurs chevaux de bataille.
-
-A droite, les etats-majors s'inquietent de cette tendance et multiplient les reunions de strategie. Plusieurs figures moderees appellent a un elargissement de l'alliance electorale, tandis que l'aile conservatrice plaide pour un retour aux fondamentaux.
-
-Il reste cependant plusieurs mois avant le scrutin, et les campagnes sont loin d'etre terminées. Les analystes rappellent que les dynamiques peuvent evoluer rapidement, notamment en fonction des decisions prises au niveau national.`,
-      imageUrl: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=800',
-      featured: false,
-      authorId: marie.id,
-      categoryId: politique.id,
-      tagIds: [tags[0].id],
-    },
-    {
-      title: "Reforme constitutionnelle : le debat relance au Parlement",
-      slug: "reforme-constitutionnelle-debat-relance-parlement",
-      excerpt: "Le gouvernement relance les discussions sur une revision de la Constitution, notamment concernant le droit de vote a 16 ans et la prise en compte de l'environnement.",
-      content: `Apres plusieurs mois de silence politique, le debat sur une eventuelle revision constitutionnelle a ete officiellement relance ce mardi a l'Assemblee nationale. Le ministre charge des Relations avec le Parlement a presente les grandes lignes d'un projet qui pourrait modifier plusieurs articles fondamentaux de la Loi fondamentale.
-
-Parmi les points les plus debattus figurent l'abaissement de l'age du droit de vote a 16 ans, soutenu par une coalition de partis de gauche et du centre, ainsi que l'inscription explicite de la protection de l'environnement comme obligation constitutionnelle.
-
-Les opposants a ces reformes, notamment au sein de la droite traditionnelle, estiment que modifier la Constitution sur ces sujets serait prematurer et risquerait de creeer des contentieux juridiques. "La Constitution n'est pas un programme politique", a declare l'un des chefs de file conservateurs.
-
-Le processus est long : une revision constitutionnelle necessite soit un referendum, soit un vote du Congres a la majorite des trois cinquiemes. Les negociations s'annoncent difficiles.`,
-      imageUrl: 'https://images.unsplash.com/photo-1555848962-6e79363ec58f?w=800',
-      featured: false,
-      authorId: marie.id,
-      categoryId: politique.id,
-      tagIds: [tags[0].id, tags[1].id],
-    },
-    {
-      title: "Reforme des retraites : manifestation nationale, des dizaines de milliers dans les rues",
-      slug: "reforme-retraites-manifestation-nationale-dizaines-milliers-rues",
-      excerpt: "Des dizaines de milliers de personnes ont desfilee dans toute la France pour protester contre le projet de reforme des retraites. Les syndicats annoncent une prochaine journee d'action.",
-      content: `Les principales villes de France ont ete le theatre ce jeudi de manifestations contre le projet de reforme des retraites porté par le gouvernement. Selon les syndicats, plus de 200 000 personnes ont marche, tandis que les autorites de police font état de 85 000 manifestants a l'echelle nationale.
-
-A Paris, le cortege a relie la place de la Republique a celle de la Nation, sous haute surveillance policiere. Des incidents mineurs ont ete signales en fin de parcours, avec quelques vitrines brisees par un groupe de casseurs qui se sont infiltres dans le defile.
-
-La reforme envisagee repousse l'age legal de depart a la retraite et modifie les regles de calcul des pensions. Le gouvernement affirme que ces mesures sont "indispensables" pour assurer la viabilite financiere du systeme sur le long terme.
-
-Les leaders syndicaux ont ete univoques : "Nous ne laissons pas passer cette reforme injuste. Nous appelons a une nouvelle journee de mobilisation dans quinze jours si le gouvernement ne retire pas son projet."`,
-      imageUrl: 'https://images.unsplash.com/photo-1569683795645-b62e50fbf103?w=800',
+      title: "Budget 2027 : le gouvernement annonce 20 milliards de coupes dans les dépenses",
+      slug: 'budget-2027-coupes-depenses',
+      excerpt: "Le Premier ministre a présenté un plan d'austérité pour réduire le déficit public à 3% du PIB, suscitant de vives oppositions.",
+      content: `<p>Le gouvernement a dévoilé son plan pour le budget 2027, qui prévoit 20 milliards d'euros de réductions de dépenses publiques. Une annonce qui suscite déjà des protestations dans les rangs de la majorité et de l'opposition.</p>
+<p>Le Premier ministre a justifié ces choix par la nécessité de respecter les engagements européens de la France et de retrouver la confiance des marchés financiers.</p>
+<h2>Les principaux postes touchés</h2>
+<p>Les coupes concerneront principalement les dépenses de fonctionnement de l'État, avec une réduction de 8 milliards d'euros, et les transferts aux collectivités territoriales, pour 6 milliards.</p>
+<p>Le budget de l'éducation nationale sera épargné, conformément aux engagements du président de la République. En revanche, les ministères de la culture et de l'agriculture verront leurs crédits réduits.</p>
+<h2>Réactions politiques</h2>
+<p>À gauche, les partis d'opposition ont immédiatement dénoncé un "budget de classe" qui ferait peser l'effort sur les plus modestes. À droite, certains élus jugent les coupes insuffisantes.</p>`,
+      image: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=800&q=80',
+      imageCaption: 'La conférence de presse du Premier ministre à Matignon.',
+      imageCredit: 'Reuters',
+      badge: 'ANALYSE',
+      categoryId: catPol.id,
+      authorId: jean.id,
       featured: true,
-      authorId: marie.id,
-      categoryId: politique.id,
-      tagIds: [tags[0].id],
+      views: 2980,
+      daysAgo: 2,
     },
     {
-      title: "Departementales : abstention record, les presidents sortants reconduits en majorite",
-      slug: "departementales-abstention-record-presidents-sortants-reconduits",
-      excerpt: "Le taux d'abstention a atteint 65% lors des elections departementales, un record historique. Les sortants ont ete largement reconduits dans leurs fonctions.",
-      content: `Les elections departementales qui se sont tenues ce week-end ont confirme une tendance lourde de la politique francaise : la desaffection croissante des citoyens pour les scrutins locaux. Le taux d'abstention a atteint 65,3%, un niveau jamais observe pour ce type d'election.
-
-Dans ce contexte de faible participation, les presidents sortants ont largement beneficie de leur notoriete locale et de leurs reseaux. Sur les 101 departements metropolitains et d'outre-mer, 87 ont reconduit leur president sortant.
-
-Les politologues s'interrogent sur les causes de cette abstention massive. "Les citoyens ne comprennent pas bien le role des departements, qui ont vu leurs competences se chevaucher avec les regions et les communautes de communes", explique un chercheur specialise en comportement electoral.
-
-La question du millefeuille territorial et de la simplification institutionnelle est relancee. Plusieurs voix s'elevent pour proposer une fusion departements-regions ou une refonte radicale de l'organisation territoriale.`,
-      imageUrl: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800',
-      featured: false,
-      authorId: marie.id,
-      categoryId: politique.id,
-      tagIds: [tags[0].id],
-    },
-    {
-      title: "Pacte vert europeen : la France sous pression de Bruxelles sur ses objectifs climatiques",
-      slug: "pacte-vert-europeen-france-sous-pression-bruxelles-objectifs-climatiques",
-      excerpt: "La Commission europeenne a adresse un avertissement formal a Paris concernant ses engagements de reduction des emissions de gaz a effet de serre. La France risque des sanctions.",
-      content: `La Commission europeenne a officiellement mis en demeure la France de respecter ses engagements climatiques dans le cadre du Pacte vert europeen. Paris dispose de six mois pour presenter un plan credible de reduction de ses emissions de gaz a effet de serre, sous peine de sanctions financieres pouvant atteindre plusieurs milliards d'euros.
-
-Le document transmis par Bruxelles pointe du doigt les retards pris dans plusieurs secteurs : transports, agriculture intensive et renovation energetique des batiments. Selon les chiffres de la Commission, la France affiche un retard de 12% par rapport a sa trajectoire cible pour 2030.
-
-Le gouvernement a reagit en promettant des mesures "ambitieuses mais pragmatiques". Le ministre de la Transition ecologique a annonce un plan d'action qui sera presente devant le Parlement dans les prochaines semaines.
-
-Les associations environnementales, de leur cote, estiment que cette mise en demeure aurait pu etre evitee. "Cela fait des annees que nous alertons sur l'insuffisance des politiques climatiques francaises", declare le president d'une grande ONG ecologiste.`,
-      imageUrl: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800',
-      featured: false,
-      authorId: marie.id,
-      categoryId: politique.id,
-      tagIds: [tags[1].id, tags[5].id],
-    },
-
-    // === ECONOMIE ===
-    {
-      title: "Inflation : les prix a la consommation en legere baisse, premier signal encourageant",
-      slug: "inflation-prix-consommation-legere-baisse-premier-signal-encourageant",
-      excerpt: "L'INSEE a publie ses chiffres mensuels de l'inflation. La hausse des prix ralentit pour le troisieme mois consecutif, s'etablissant a 3,2% sur un an.",
-      content: `L'Institut national de la statistique et des etudes economiques (INSEE) a publie ce matin ses chiffres d'inflation pour le mois ecoule. Le taux d'inflation s'etablit a 3,2% sur un an, en retrait par rapport aux 3,8% enregistres le mois precedent. C'est le troisieme mois consecutif de baisse, un signal que les economistes qualifient d'"encourageant mais insuffisant".
-
-Les produits alimentaires restent en tete des hausses de prix avec +4,1% sur un an, mais ce chiffre est en nette amelioration par rapport au pic de +8,9% observe il y a dix-huit mois. L'energie, quant a elle, affiche desormais une quasi-stabilite apres deux annees de forte volatilite.
-
-"La desinflation est reelle, mais nous ne sommes pas encore revenus a un regime de prix normal", commente l'economiste en chef d'une grande banque francaise. "Les menages les plus modestes continuent de souffrir de l'erosion de leur pouvoir d'achat."
-
-La Banque de France a maintenu ses projections pour la fin de l'annee, anticipant un retour sous la barre des 2% d'ici la mi-annee prochaine. Cette perspective a contribue a detendre les marches obligataires ce matin.`,
-      imageUrl: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800',
+      title: "Intelligence artificielle : la France investit 5 milliards dans la recherche",
+      slug: 'france-investit-ia-recherche',
+      excerpt: "Emmanuel Macron annonce un plan massif pour positionner la France comme leader européen de l'intelligence artificielle.",
+      content: `<p>Le président de la République a annoncé un investissement de 5 milliards d'euros dans la recherche sur l'intelligence artificielle, dans le cadre d'un plan national baptisé "France IA 2030".</p>
+<p>L'objectif est de tripler le nombre de chercheurs français travaillant sur l'IA, de créer dix nouveaux instituts de recherche et d'attirer les meilleurs talents mondiaux dans ce domaine.</p>
+<h2>Un enjeu de souveraineté</h2>
+<p>Selon l'Élysée, cet investissement répond à un enjeu de souveraineté technologique. "Si l'Europe ne prend pas sa place dans la course à l'IA, ce sont d'autres qui décideront des règles du jeu", a déclaré le chef de l'État.</p>
+<p>Le plan prévoit également la création d'un calculateur souverain de rang mondial, dont la puissance permettrait de concurrencer les infrastructures américaines et chinoises.</p>
+<h2>Les partenaires industriels</h2>
+<p>Une quinzaine d'entreprises françaises et européennes ont annoncé des investissements complémentaires, portant le total du plan à plus de 15 milliards d'euros.</p>`,
+      image: 'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=800&q=80',
+      imageCaption: "Présentation du plan France IA 2030 à l'Élysée.",
+      imageCredit: 'Élysée / DICOM',
+      badge: 'REPORTAGE',
+      categoryId: catSci.id,
+      authorId: paul.id,
       featured: true,
-      authorId: sophie.id,
-      categoryId: economie.id,
-      tagIds: [tags[2].id],
+      views: 3560,
+      daysAgo: 3,
     },
     {
-      title: "CAC 40 : l'indice parisien franchit un nouveau record historique",
-      slug: "cac-40-indice-parisien-franchit-nouveau-record-historique",
-      excerpt: "La Bourse de Paris a atteint un niveau historique ce jeudi, portee par les bons resultats des grandes entreprises du luxe et la perspective d'une baisse des taux.",
-      content: `La Bourse de Paris a inscrit un nouveau record historique ce jeudi en seance, avec le CAC 40 qui a franchi la barre symbolique dans des volumes d'echanges eleves. L'indice phare de la place parisienne a cloture en hausse de 1,8%, son plus haut niveau depuis sa creation.
-
-Cette progression est portee par plusieurs facteurs convergents : des resultats trimestriels meilleurs que prevu dans le secteur du luxe, une perspective de baisse des taux directeurs par la Banque centrale europeenne et un signal positif venu des marches americains.
-
-LVMH, Hermes et Kering ont particulierement contribue a cette hausse, avec des gains compris entre 3 et 5%. Le secteur bancaire a egalement ete bien oriente, profitant d'anticipations de marges plus elevees.
-
-Les strategistes de marche mettent cependant en garde contre un exces d'optimisme. "Les valorisations sont tendues dans certains secteurs, et les risques geopolitiques et macroeconomiques restent eleves", note un analyste de grande banque d'investissement. "Il faut rester prudent."`,
-      imageUrl: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800',
+      title: "Réforme des retraites : le Conseil constitutionnel valide les principales mesures",
+      slug: 'reforme-retraites-conseil-constitutionnel',
+      excerpt: "La réforme portant l'âge légal de départ à 64 ans est conforme à la Constitution, ont statué les Sages.",
+      content: `<p>La décision du Conseil constitutionnel est tombée : la réforme des retraites, qui repousse l'âge légal de départ de 62 à 64 ans, est jugée conforme à la Constitution dans ses grandes lignes.</p>
+<p>Les Sages ont néanmoins censuré deux cavaliers législatifs qui n'avaient pas leur place dans le texte budgétaire.</p>
+<h2>Réactions politiques</h2>
+<p>Le gouvernement a salué cette décision, y voyant une "validation démocratique" de sa réforme. À gauche, les partis d'opposition ont annoncé qu'ils continueraient à se battre contre cette réforme par tous les moyens constitutionnels.</p>
+<p>Les syndicats ont immédiatement convoqué une nouvelle journée d'action nationale.</p>`,
+      image: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=800&q=80',
+      imageCaption: 'Le Conseil constitutionnel, rue de Montpensier à Paris.',
+      imageCredit: 'Conseil constitutionnel',
+      badge: null,
+      categoryId: catPol.id,
+      authorId: jean.id,
       featured: false,
-      authorId: sophie.id,
-      categoryId: economie.id,
-      tagIds: [tags[2].id],
+      views: 3100,
+      daysAgo: 4,
     },
     {
-      title: "Taux de chomage : la France atteint son niveau le plus bas depuis vingt ans",
-      slug: "taux-chomage-france-atteint-niveau-plus-bas-depuis-vingt-ans",
-      excerpt: "Le taux de chomage en France est tombe a 6,8% au dernier trimestre, son niveau le plus bas depuis 2004. Une evolution saluee par le gouvernement, meme si des disparites persistent.",
-      content: `Les chiffres du chomage publies ce matin par la DARES (Direction de l'animation de la recherche, des etudes et des statistiques) confirment une tendance de fond : le taux de chomage en France metropolitaine a atteint 6,8% de la population active au cours du dernier trimestre, son niveau le plus bas depuis l'annee 2004.
-
-Le gouvernement a immediatement salue ces "excellents resultats", y voyant la confirmation de l'efficacite de ses politiques d'emploi, notamment la reforme de l'apprentissage et les incitations a l'embauche dans les secteurs en tension.
-
-Cependant, les economistes invitent a nuancer ce tableau globalement positif. Les inegalites territoriales restent marquees : certains departements du nord et du sud-ouest affichent des taux superieurs a 10%, tandis que d'autres regions sont en situation de quasi-plein emploi. De plus, le sous-emploi et le chomage de longue duree demeurent des preoccupations majeures.
-
-Les syndicats de leur cote pointent la qualite des emplois crees. "Avoir un emploi ne signifie pas avoir un bon emploi. La progression des contrats precaires et des temps partiels subi masque une realite moins brillante", declare un responsable syndical.`,
-      imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800',
-      featured: false,
-      authorId: sophie.id,
-      categoryId: economie.id,
-      tagIds: [],
-    },
-    {
-      title: "Energie : la facture d'electricite des menages va augmenter de 8% en fevrier",
-      slug: "energie-facture-electricite-menages-va-augmenter-8-fevrier",
-      excerpt: "La Commission de regulation de l'energie a annonce une hausse de 8% du tarif reglemente de vente de l'electricite a partir du 1er fevrier. Une mauvaise nouvelle pour les menages.",
-      content: `La Commission de regulation de l'energie (CRE) a annonce ce vendredi que le tarif reglemente de vente (TRV) de l'electricite augmentera de 8,1% le 1er fevrier prochain. Cette hausse, qui concerne quelque 23 millions de foyers, se traduira par une augmentation moyenne de 16 euros par mois sur la facture des menages.
-
-Cette hausse s'explique principalement par la fin progressive du bouclier tarifaire mis en place pendant la crise energetique et par l'evolution des couts d'approvisionnement. EDF, principal producteur, a egalement vu ses couts de maintenance des centrales nucleaires augmenter significativement.
-
-Les associations de consommateurs ont immediatement denonce cette hausse, rappelant que les menages souffrent deja d'un pouvoir d'achat fragilise. "Cette augmentation va toucher de plein fouet les foyers modestes et les personnes agees qui se chauffent a l'electricite", declare la presidente d'une grande association de defense des consommateurs.
-
-Des aides sont prevues pour les menages les plus vulnerables, notamment via le cheque energie qui sera revalorise. Mais pour beaucoup de menages de classe moyenne, aucune compensation n'est prevue.`,
-      imageUrl: 'https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?w=800',
-      featured: false,
-      authorId: sophie.id,
-      categoryId: economie.id,
-      tagIds: [tags[2].id, tags[5].id],
-    },
-    {
-      title: "Amazon ouvre son plus grand centre de distribution en France, creant 1 500 emplois",
-      slug: "amazon-ouvre-plus-grand-centre-distribution-france-creant-1500-emplois",
-      excerpt: "Le geant americain du e-commerce a inaugure un nouveau mega-centre logistique en Ile-de-France. Cette implantation cree 1 500 emplois directs mais suscite des controverses.",
-      content: `Amazon a inaugure ce mardi son plus grand centre de distribution en France, un batiment de 185 000 metres carres situe en grande couronne parisienne. L'installation, dotee de la derniere generation de robots logistiques, emploiera 1 500 personnes directement, avec 500 embauches supplementaires prevues d'ici deux ans.
-
-La ceremony a ete presidee par un secretaire d'Etat charge du numerique, qui a salue "un investissement majeur pour l'emploi local" dans une zone qui connait un chomage superieur a la moyenne nationale.
-
-Mais l'implantation ne fait pas l'unanimite. Des organisations syndicales et des associations de commercants locaux ont manifeste a l'entree du site, denoncant les conditions de travail au sein des entrepots Amazon et l'impact sur le petit commerce de proximite. Des elus locaux de gauche ont egalement proteste contre les exonerations fiscales accordees a l'entreprise.
-
-Amazon, de son cote, met en avant ses salaires "au-dessus du SMIC", ses formations internes et ses engagements en matiere de neutralite carbone. "Nous sommes un employeur responsable et nous avons un impact positif sur les economies locales", a declare la directrice des operations France.`,
-      imageUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800',
-      featured: false,
-      authorId: sophie.id,
-      categoryId: economie.id,
-      tagIds: [tags[7].id],
-    },
-    {
-      title: "Budget 2025 : le Parlement adopte un plan d'economies de 30 milliards d'euros",
-      slug: "budget-2025-parlement-adopte-plan-economies-30-milliards",
-      excerpt: "Apres des semaines de negociations tendues, le budget de l'Etat pour 2025 a ete adopte par l'Assemblee nationale. Il prevoit un effort d'economies sans precedent pour reduire le deficit.",
-      content: `L'Assemblee nationale a adopte ce soir en session extraordinaire le budget de l'Etat pour l'annee 2025. Le texte, qui prevoit 30 milliards d'euros d'economies par rapport a la trajectoire precedente, a ete adopte par 289 voix contre 261, avec le soutien d'une majorite de circonstance.
-
-Ce budget est le plus contraignant depuis la crise de 2010. Il prevoit notamment un gel partiel des aides sociales, une reduction des effectifs dans plusieurs ministeres non-prioritaires et une hausse ciblée de certains impots sur les hauts revenus et les grandes entreprises.
-
-Le ministre des Finances a presente ce vote comme "un acte de responsabilite budgetaire indispensable" pour ramener le deficit public sous la barre des 3% du PIB, exigee par les regles europeennes. "Nos partenaires europeens nous observent. La credibilite de la France est en jeu", a-t-il declare.
-
-Les oppositions de gauche ont denonce "un budget d'austerite qui sacrifie les services publics et les plus fragiles". Celles de droite ont critique l'augmentation des impots qu'elles jugent "contre-productive". La prochaine etape est l'examen par le Senat.`,
-      imageUrl: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=800',
-      featured: false,
-      authorId: sophie.id,
-      categoryId: economie.id,
-      tagIds: [],
-    },
-    {
-      title: "Immobilier : le marche repart apres dix-huit mois de crise",
-      slug: "immobilier-marche-repart-apres-dix-huit-mois-crise",
-      excerpt: "Les transactions immobilieres ont augmente de 12% au dernier trimestre, apres une longue periode de repli. La baisse des taux d'interet et le retour des acheteurs donnent des signes de rebond.",
-      content: `Apres dix-huit mois difficiles marques par la hausse des taux d'interet et le recul des prix dans de nombreuses regions, le marche immobilier francais semble amorcer un rebond. Les chiffres publies par la Chambre des notaires de France font etat d'une hausse de 12% des transactions au cours du dernier trimestre, par rapport a la meme periode l'an passe.
-
-Cette amelioration s'explique principalement par le recul des taux d'emprunt immobilier, qui sont passes d'un pic de 4,5% a environ 3,2% pour les credits sur vingt ans. Des taux toujours historiquement eleves par rapport aux annees 2010-2020, mais qui permettent a nouveau a certains menages d'acquerir.
-
-A Paris, les prix ont recule d'environ 8% depuis leur pic, revenant sous la barre des 10 000 euros le metre carre en moyenne. En regions, les disparites sont importantes : les grandes metropoles regionales se stabilisent, tandis que certaines zones rurales continuent de subir une decote.
-
-"Nous ne sommes pas encore revenus a un marche normal, mais la direction est bonne", estime un directeur d'une grande federation immobiliere. Les experts anticipent une poursuite progressive de la reprise en 2025.`,
-      imageUrl: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800',
-      featured: false,
-      authorId: sophie.id,
-      categoryId: economie.id,
-      tagIds: [],
-    },
-
-    // === CULTURE ===
-    {
-      title: "Festival de Cannes : la Palme d'or remise a un film francais pour la premiere fois depuis dix ans",
-      slug: "festival-cannes-palme-or-remise-film-francais-premiere-fois-depuis-dix-ans",
-      excerpt: "Le film 'Les Invisibles' du realisateur Antoine Garnier a remporte la Palme d'or au 77e Festival de Cannes. Une oeuvre sur la migration et la fraternite qui a bouleverse le jury.",
-      content: `Le 77e Festival international du film de Cannes a vecu l'une de ses editions les plus emotionnelles. La Palme d'or a ete decernee a "Les Invisibles", le quatrieme long-metrage du realisateur francais Antoine Garnier, un film sur la migration clandestine et la solidarite humaine qui a provoque plusieurs ovations debout au Palais des festivals.
-
-C'est la premiere fois depuis une decennie qu'un film francais remporte la recompense supreme. La presidente du jury, une grande actrice internationale, a declare au moment de la remise du prix : "Ce film nous a tous bouleverses. Il montre l'humanite dans toute sa complexite, avec une tendresse et une violence qui coexistent magnifiquement."
-
-Antoine Garnier, visiblement emu, a dedicace sa Palme "a tous ceux qui n'ont pas de voix, a tous ceux qui traversent la Mediterranee au peril de leur vie". Son discours de quelques minutes a ete largement applaudi par le public et les professionnels du cinema.
-
-Le film, tourne en partie avec des acteurs non professionnels issus de l'immigration, sortira en France dans six salles avant d'etre distribue nationalement. Des adaptations sont deja prevues pour une diffusion internationale.`,
-      imageUrl: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800',
-      featured: true,
-      authorId: jeanpierre.id,
-      categoryId: culture.id,
-      tagIds: [],
-    },
-    {
-      title: "Le Louvre annonce sa plus grande exposition temporaire, consacree a la Renaissance italienne",
-      slug: "louvre-annonce-plus-grande-exposition-temporaire-renaissance-italienne",
-      excerpt: "Le musee du Louvre presentera du 15 mars au 15 juillet une exposition exceptionnelle reunissant plus de 200 oeuvres de la Renaissance italienne pretees par les plus grands musees du monde.",
-      content: `Le musee du Louvre a devoile ce mardi les details de ce qui sera la plus grande exposition temporaire de son histoire. "Renaissance : l'eclosion du monde moderne" reunira du 15 mars au 15 juillet 214 oeuvres majeures de la Renaissance italienne, dont plusieurs n'ont jamais quitte leurs etablissements d'origine.
-
-Parmi les pieces les plus attendues figurent plusieurs tableaux de Raphael prets par les Musees du Vatican, une serie exceptionnelle de dessins de Leonard de Vinci conserves habituellement a la Bibliotheque royale de Windsor et des sculptures de Michel-Ange issues du musee national de Florence.
-
-"C'est le fruit de dix ans de negociations diplomatiques et de partenariats entre institutions", a explique la presidente du musee lors de la conference de presse. La mise en scene a ete confiee a un scenographe de renommee internationale qui promet un "voyage immersif" dans le Florence du XVe siecle.
-
-Face a l'afflux attendu de visiteurs, le Louvre mettra en place une billetterie entierement numerique avec des creneaux horaires limites. La reservation sera obligatoire. Des nocturnes supplementaires sont prevues le vendredi et le samedi soir.`,
-      imageUrl: 'https://images.unsplash.com/photo-1499678329028-101435549a4e?w=800',
-      featured: false,
-      authorId: jeanpierre.id,
-      categoryId: culture.id,
-      tagIds: [],
-    },
-    {
-      title: "Prix Goncourt : le roman 'La Derniere Saison' de Clara Voisin couronne",
-      slug: "prix-goncourt-roman-derniere-saison-clara-voisin-couronne",
-      excerpt: "L'Academie Goncourt a attribue son prix a Clara Voisin pour son roman sur la memoire et l'identite. Une oeuvre saluee comme l'une des grandes decouvertes litteraires de l'annee.",
-      content: `L'Academie Goncourt a attribue ce mardi son prix a Clara Voisin pour "La Derniere Saison", un roman de 380 pages publie aux editions Gallimard. Clara Voisin, 34 ans, est la plus jeune laureate du prix depuis plusieurs decennies.
-
-"La Derniere Saison" raconte l'histoire d'une jeune femme qui revient dans la maison familiale bretonne apres le deces de sa grand-mere et decouvre dans les lettres et les journaux intimes des revelations sur l'histoire de sa famille pendant l'Occupation. Une plongee dans la memoire, l'identite et le poids du passe.
-
-Le verdict a ete rendu apres un dernier vote parmi quatre finalistes. Le jury a salue "une ecriture d'une maturite etonnante, a la fois precise et poetique, qui sait traiter de sujets graves avec une legèrete toute en finesse".
-
-Le roman, qui s'etait deja vendu a 45 000 exemplaires avant le verdict, va probablement franchir le cap du million de ventes dans les semaines a venir. Clara Voisin est en preparation d'un deuxieme roman.`,
-      imageUrl: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800',
-      featured: false,
-      authorId: jeanpierre.id,
-      categoryId: culture.id,
-      tagIds: [],
-    },
-    {
-      title: "Notre-Dame de Paris : la cathedrale rouvre ses portes apres cinq ans de restauration",
-      slug: "notre-dame-paris-cathedrale-rouvre-portes-apres-cinq-ans-restauration",
-      excerpt: "Cinq ans apres l'incendie qui avait ravage sa fleche et une grande partie de son toit, Notre-Dame de Paris a rouvert ses portes au public. Une renaissance saluee dans le monde entier.",
-      content: `Notre-Dame de Paris a vecu ce samedi une renaissance symbolique. Cinq ans, trois mois et quelques jours apres l'incendie devastateur qui avait choque la France et le monde entier, la cathedrale a rouvert ses portes, restauree, reinventee et plus belle que jamais selon ses visiteurs.
-
-La ceremonie d'ouverture, presidee par les plus hautes autorites de l'Etat et en presence de dignitaires etrangers venus du monde entier, a ete suivie d'un premier office religieux. Des centaines de personnes avaient bivouaque la nuit precedente sur le parvis pour etre parmi les premiers a entrer.
-
-Le chantier de restauration, qui a mobilise des milliers de compagnons, artisans et specialistes, a constitue un exploit technique et humain sans precedent. La nouvelle fleche, une reproduction fidele de celle de Viollet-le-Duc, domine a nouveau le ciel parisien.
-
-Les grilles d'entree etaient decorees de milliers de dessins d'enfants venus de soixante-dix pays, un symbole de la dimension mondiale de cet edifce. "Notre-Dame n'appartient pas qu'aux Francais, elle appartient a l'humanite entiere", a declare l'archeveque de Paris lors de son homelie.`,
-      imageUrl: 'https://images.unsplash.com/photo-1431274172761-fca41d930114?w=800',
-      featured: false,
-      authorId: jeanpierre.id,
-      categoryId: culture.id,
-      tagIds: [],
-    },
-    {
-      title: "Musique : l'artiste Aya Nakamura representera la France aux MTV Awards",
-      slug: "musique-aya-nakamura-representera-france-mtv-awards",
-      excerpt: "La chanteuse Aya Nakamura a ete selectionnee pour representer la scene musicale francaise aux MTV Europe Music Awards. Une consecration internationale pour l'artiste la plus streamee de France.",
-      content: `La chanteuse franco-malienne Aya Nakamura a ete officiellement selectionnee pour representer la France a la prochaine edition des MTV Europe Music Awards qui se tiendra a Barcelone. C'est la premiere fois qu'une artiste de variete francophone est mise en avant par l'organisation americaine dans cette categorie.
-
-Avec plus de 12 millions d'auditeurs mensuels sur Spotify et plusieurs tubes internationaux, Aya Nakamura est aujourd'hui l'artiste francophone la plus ecoutee dans le monde. Son dernier album a ete certifie double platine en France et s'est positionne dans les charts de nombreux pays africains, americains et europeens.
-
-Cette nomination intervient dans un contexte de renouveau de la musique populaire francaise sur la scene internationale. Plusieurs artistes francais ont percé ces dernieres annees au niveau mondial, brisant partiellement la domination de l'anglais dans la pop culture.
-
-"Je suis tellement fiere de ce moment. Je dedie cette reconnaissance a tous les artistes francophones qui se battent pour exister sur la scene internationale", a declare l'artiste dans un message video publie sur ses reseaux sociaux.`,
-      imageUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800',
-      featured: false,
-      authorId: jeanpierre.id,
-      categoryId: culture.id,
-      tagIds: [],
-    },
-    {
-      title: "Theatre : la Comedie-Francaise ouvre sa saison avec une mise en scene controversee de Moliere",
-      slug: "theatre-comedie-francaise-ouvre-saison-mise-en-scene-controversee-moliere",
-      excerpt: "La Comedie-Francaise ouvre sa nouvelle saison avec 'Le Misanthrope' dans une mise en scene contemporaine qui transpose l'action de Moliere dans le monde des reseaux sociaux.",
-      content: `La Comedie-Francaise a choisi d'ouvrir sa saison avec une adaptation pour le moins audacieuse du "Misanthrope" de Moliere. Le metteur en scene Thibaut Peyre a transpose l'action dans le monde contemporain des reseaux sociaux et de la culture de l'annulation, suscitant a la fois l'enthousiasme et l'indignation.
-
-Dans cette version, Alceste est un lanceur d'alerte sur Twitter, Celimene une influenceuse Instagram, et les scenes de salon se deroulent dans les couloirs d'une startup parisienne. Les alexandrins de Moliere sont preserves, ce qui cree un contraste saisissant avec les decors ultra-contemporains.
-
-La presse est divisee. Une partie des critiques salue une mise en scene qui "donne une nouvelle jeunesse a un texte fondateur" et montre sa permanente actualite. D'autres estiment que cette transposition "trahit l'esprit du texte" et constitue un "exercice de style sans profondeur".
-
-Le public, lui, est au rendez-vous : les representations jusqu'en janvier sont deja completes. La Comedie-Francaise a deja annonce une prolongation.`,
-      imageUrl: 'https://images.unsplash.com/photo-1503095396549-807759245b35?w=800',
-      featured: false,
-      authorId: jeanpierre.id,
-      categoryId: culture.id,
-      tagIds: [],
-    },
-
-    // === SCIENCE ===
-    {
-      title: "Intelligence artificielle : un modele francais rivalise desormais avec les grandes IA americaines",
-      slug: "intelligence-artificielle-modele-francais-rivalise-grandes-ia-americaines",
-      excerpt: "Une startup francaise a presente un modele d'intelligence artificielle generative capable de rivaliser sur plusieurs benchmarks avec les grandes IA comme GPT-4 et Claude. Une percee historique.",
-      content: `Une startup francaise, Lumina AI, a cree la surprise dans le milieu de l'intelligence artificielle en presentant un modele de langage de grande taille (LLM) capable de rivaliser avec les meilleurs modeles americains sur plusieurs benchmarks standardises. Un exploit qui redonne de l'espoir a la filiere IA europeenne.
-
-Le modele, baptise "Helios-7B", a ete entraine sur un superordinateur finance en partie par l'Etat francais et des fonds europeens. Il se distingue notamment par ses capacites en francais et dans d'autres langues europeennes, domaine ou les modeles americains montrent souvent des lacunes.
-
-"Nous prouvons que l'Europe peut jouer dans la cour des grands, pour peu qu'on lui en donne les moyens", a declare le cofondateur de Lumina AI lors d'une conference de presse a Paris. La startup, fondee par d'anciens chercheurs de l'INRIA et de l'Ecole Polytechnique, emploie 150 personnes.
-
-La Commission europeenne a salue cette avancee, y voyant la confirmation de la pertinence de ses investissements dans la recherche en IA. Des discussions sont en cours pour etendre le partenariat a d'autres pays de l'Union.`,
-      imageUrl: 'https://images.unsplash.com/photo-1677442135703-1787eea5ce01?w=800',
-      featured: true,
-      authorId: sophie.id,
-      categoryId: science.id,
-      tagIds: [tags[4].id, tags[7].id],
-    },
-    {
-      title: "Sante : une nouvelle therapie genique guerit des enfants atteints de leucemie",
-      slug: "sante-nouvelle-therapie-genique-guerit-enfants-atteints-leucemie",
-      excerpt: "Des chercheurs de l'hopital Necker ont annonce des resultats extraordinaires dans le traitement de leucemie aigue lymphoblastique chez l'enfant grace a une therapie genique innovante.",
-      content: `Une equipe de chercheurs de l'hopital Necker-Enfants malades de Paris a publie dans la revue Nature Medicine des resultats qui bouleversent la prise en charge d'une forme de leucemie particulierement grave chez l'enfant. Sur un essai clinique portant sur 42 patients, 38 sont entres en remission complete apres un traitement unique par therapie genique.
-
-Cette approche, appelee CAR-T allogeneique, consiste a modifier genetiquement des cellules immunitaires pour les rendre capables de reconnaître et de detruire les cellules cancereuses. La novateur ici est l'utilisation de cellules de donneurs, ce qui permet de traiter les patients en urgence sans attendre les semaines necessaires a la fabrication de cellules personnalisees.
-
-Le professeur Stephane Blanchard, qui dirige l'equipe de recherche, a qualifie ces resultats de "saut quantique" dans le traitement des leucemies de l'enfant. "Pour la premiere fois, nous avons l'espoir de guerir des enfants qui n'avaient auparavant aucune option therapeutique", a-t-il declare.
-
-L'Agence europeenne du medicament devrait examiner une demande d'autorisation de mise sur le marche d'ici la fin de l'annee. Le prix du traitement, qui pourrait atteindre plusieurs centaines de milliers d'euros, pose deja des questions sur son accessibilite.`,
-      imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800',
-      featured: false,
-      authorId: sophie.id,
-      categoryId: science.id,
-      tagIds: [tags[6].id],
-    },
-    {
-      title: "Espace : Ariane 6 reussit son premier lancement commercial avec succes",
-      slug: "espace-ariane-6-reussit-premier-lancement-commercial-succes",
-      excerpt: "Le lanceur europeen Ariane 6 a place avec succes quatre satellites commerciaux sur orbite lors de son premier vol commercial. Un moment cle pour l'independance spatiale europeenne.",
-      content: `Ariane 6 a reussi son premier lancement commercial, marquant un tournant majeur pour l'industrie spatiale europeenne. La fusee a decollé avec succes du Centre spatial guyanais a Kourou et a place quatre satellites commerciaux sur leur orbite respective avec une precision de quelques dizaines de metres.
-
-Ce lancement était très attendu apres plusieurs retards. Il consolide la position de l'Europe dans la competition spatiale mondiale et permet a ArianeGroup de remplir ses engagements envers ses clients commerciaux qui s'etaient inquietes des delais.
-
-"C'est une etape fondamentale pour l'autonomie d'acces de l'Europe a l'espace", a declare le directeur general de l'Agence spatiale europeenne. "Avec Ariane 6, nous avons un lanceur moderne capable de repondre aux besoins du marche commercial et institutionnel pour les decennies a venir."
-
-La prochaine etape sera l'homologation complete du lanceur apres une serie de vols supplementaires, puis la montee en cadence des lancements pour atteindre dix missions par an d'ici 2027. L'ESA a deja un carnet de commandes bien rempli.`,
-      imageUrl: 'https://images.unsplash.com/photo-1517976487492-5750f3195933?w=800',
-      featured: false,
-      authorId: sophie.id,
-      categoryId: science.id,
-      tagIds: [tags[7].id],
-    },
-    {
-      title: "Rechauffement climatique : 2024 confirmee comme l'annee la plus chaude jamais enregistree",
-      slug: "rechauffement-climatique-2024-confirmee-annee-plus-chaude-jamais-enregistree",
-      excerpt: "L'Organisation meteorologique mondiale a confirme que 2024 a ete l'annee la plus chaude depuis le debut des mesures instrumentales, depassant de 1,52°C la moyenne pre-industrielle.",
-      content: `L'Organisation meteorologique mondiale (OMM) a publie son bilan climatique definitif pour l'annee 2024 : avec une temperature moyenne globale superieure de 1,52°C a la moyenne pre-industrielle, 2024 est desormais officiellement l'annee la plus chaude jamais enregistree depuis le debut des mesures systematiques en 1850.
-
-Cette annonce est particulierement preoccupante car elle signifie que, pour la premiere fois sur une annee entiere, le seuil de 1,5°C fixe par l'Accord de Paris a ete franchi. Les climatologues s'empressent de preciser qu'un seul depassement ne signifie pas l'echec de l'Accord, celui-ci se referant a une tendance sur vingt ans.
-
-En France, l'annee 2024 a ete marquee par plusieurs vagues de chaleur dont deux ont ete classees comme exceptionnelles, des inondations plus frequentes dans le nord du pays et un enneigement en forte baisse dans les massifs montagneux.
-
-"Le signal climatique est desormais indiscutable et visible par tous dans leur vie quotidienne", commente le directeur d'un grand laboratoire de recherche climatique. "Nous payons le prix d'un siecle d'emissions sans precedent."`,
-      imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800',
-      featured: false,
+      title: "Crise climatique : 2025 a été l'année la plus chaude jamais enregistrée",
+      slug: 'crise-climatique-2025-annee-plus-chaude',
+      excerpt: "Les données météorologiques confirment que 2025 a battu tous les records de température planétaire, dépassant le seuil de 1,5°C.",
+      content: `<p>Les organismes météorologiques mondiaux ont confirmé que l'année 2025 a été la plus chaude jamais enregistrée depuis le début des relevés instrumentaux.</p>
+<p>La température moyenne de la planète a dépassé de 1,6°C la moyenne de l'ère préindustrielle, franchissant pour la première fois le seuil symbolique de 1,5°C fixé par l'accord de Paris.</p>
+<h2>Des conséquences concrètes</h2>
+<p>En France, l'été 2025 a été marqué par six vagues de chaleur successives, dont trois avec des températures supérieures à 45°C dans le Sud. Le nombre de décès liés à la chaleur a atteint un niveau record.</p>
+<p>Selon les climatologues, ce n'est malheureusement pas une anomalie mais l'illustration d'une tendance de fond qui va s'accentuer dans les décennies à venir.</p>
+<h2>Appels à l'action</h2>
+<p>Face à ces données alarmantes, le secrétaire général de l'ONU a appelé les gouvernements à "stopper d'urgence toute nouvelle exploitation d'énergies fossiles".</p>`,
+      image: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80',
+      imageCaption: "Sécheresse en Camargue, conséquence du changement climatique.",
+      imageCredit: 'Jean-Pierre Clatot / AFP',
+      badge: 'ENQUETE',
+      categoryId: catSci.id,
       authorId: marie.id,
-      categoryId: science.id,
-      tagIds: [tags[5].id],
+      featured: false,
+      views: 2890,
+      daysAgo: 5,
     },
     {
-      title: "Neurologie : une electrode cerebrale permet a un paralytique de retrouver l'usage de sa main",
-      slug: "neurologie-electrode-cerebrale-permet-paralytique-retrouver-usage-main",
-      excerpt: "Des chercheurs suisses et francais ont implante une electrode dans le cerveau d'un patient paralyse, lui permettant de controler sa main a travers un exosquelette. Une avancee spectaculaire.",
-      content: `Une equipe de chercheurs franco-suisses a annonce une avancee spectaculaire dans la prise en charge des personnes paralysees. Un patient atteint de tetraplegie depuis cinq ans a retrouve la capacite de saisir des objets et d'effectuer des gestes precis grace a un dispositif combining electrode cerebrale et exosquelette de main.
-
-L'interface cerveau-machine developpee par les equipes de l'EPFL (Ecole polytechnique federale de Lausanne) et du CHU de Grenoble intercepte les signaux nerveux dans le cortex moteur du patient et les transmets en temps reel au dispositif mecanique enveloppant sa main.
-
-Le patient, qui a pris part a la conference de presse, a pu realiser plusieurs demonstrations devant les journalistes : saisir un verre d'eau, tourner une page, taper sur un clavier. "C'est comme si une partie de mon corps revenait a la vie. Je n'aurais jamais imagine cela possible il y a encore deux ans", a-t-il temoigne, visiblement emu.
-
-Les chercheurs travaillent maintenant a la miniaturisation du dispositif et a son autonomisation pour permettre une utilisation hors du laboratoire. L'horizon commercial est estime a cinq a dix ans.`,
-      imageUrl: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800',
-      featured: false,
-      authorId: sophie.id,
-      categoryId: science.id,
-      tagIds: [tags[6].id, tags[7].id],
-    },
-    {
-      title: "Biodiversite : un tiers des especes d'insectes menacees d'extinction en France",
-      slug: "biodiversite-tiers-especes-insectes-menacees-extinction-france",
-      excerpt: "Un rapport du Museum national d'Histoire naturelle revele que 34% des especes d'insectes recensees en France metropolitaine sont desormais menacees d'extinction.",
-      content: `Le Museum national d'Histoire naturelle (MNHN) a publie un rapport alarmant sur l'etat de la biodiversite des insectes en France metropolitaine. Selon cette etude qui a mobilise 400 scientifiques pendant cinq ans, 34% des 35 000 especes d'insectes repertoriees sur le territoire national sont desormais considerees comme menacees d'extinction, contre 20% il y a vingt ans.
-
-Les causes sont multiples et bien connues : utilisation intensive des pesticides agricoles, destruction des habitats naturels, urbanisation croissante, pollution lumineuse nocturne et rechauffement climatique. Les abeilles sauvages, les papillons et les coleopteres sont les groupes les plus touches.
-
-"La disparition des insectes est un drame ecologique silencieux dont nous ne mesurons pas encore toutes les consequences", avertit la presidente du MNHN. "Les insectes sont la base de la chaine alimentaire et jouent un role irrempacable dans la pollinisation des cultures. Leur disparition nous concerne tous directement."
-
-Le rapport formule quarante recommandations dont l'interdiction de certains pesticides neonicotinoïdes, la creation d'un reseau de corridors ecologiques et une reforme de la politique agricole commune pour integrer des obligations de preservation de la biodiversite.`,
-      imageUrl: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d1c?w=800',
-      featured: false,
+      title: "Festival de Cannes : la Palme d'or décernée à un film japonais",
+      slug: 'cannes-palme-or-film-japonais',
+      excerpt: "Le jury a récompensé Hirokazu Kore-eda pour son film poétique sur la mémoire et la transmission entre générations.",
+      content: `<p>C'est un film japonais qui a remporté la Palme d'or lors du Festival de Cannes. "Koe no Kioku" du réalisateur Hirokazu Kore-eda a ému aux larmes une grande partie du public et du jury présidé cette année par une cinéaste française.</p>
+<p>Le jury a salué "un film d'une rare beauté formelle, qui explore avec une délicatesse infinie les liens entre génération et transmission, entre souvenir et identité".</p>
+<h2>Un cinéaste au sommet</h2>
+<p>Pour Kore-eda, c'est une deuxième Palme d'or après "Une affaire de famille" en 2018, ce qui en fait l'un des très rares cinéastes à avoir décroché deux fois la plus haute récompense cannoise.</p>
+<p>Le Grand Prix a été décerné à un film brésilien, tandis que le Prix du jury est allé à une production franco-sénégalaise.</p>`,
+      image: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800&q=80',
+      imageCaption: 'Le Palais des Festivals de Cannes lors de la cérémonie de clôture.',
+      imageCredit: 'Valery Hache / AFP',
+      badge: 'REPORTAGE',
+      categoryId: catCul.id,
       authorId: marie.id,
-      categoryId: science.id,
-      tagIds: [tags[5].id],
+      featured: false,
+      views: 1250,
+      daysAgo: 6,
     },
-
-    // === INTERNATIONAL ===
     {
-      title: "Ukraine : les pourparlers de paix progressent, un accord de cessez-le-feu possible",
-      slug: "ukraine-pourparlers-paix-progressent-accord-cessez-le-feu-possible",
-      excerpt: "Les negociations entre Kiev et Moscou, mediees par plusieurs pays europeens, semblent avancer vers un accord de cessez-le-feu. Les positions se rapprochent sur plusieurs points cles.",
-      content: `Pour la premiere fois depuis le debut du conflit, des sources diplomatiques evoquent de serieux progres dans les negociations de paix entre l'Ukraine et la Russie. Des talks qui se deroulent dans un pays europeen neutre et qui sont facilites par plusieurs mediateurs europeens semblent avoir permis un rapprochement des positions sur certains points fondamentaux.
-
-Selon des diplomates informes des discussions, les deux parties s'accorderaient sur le principe d'un cessez-le-feu supervise par des observateurs internationaux, sur un echange massif de prisonniers de guerre et sur des negociations subsequentes pour determiner le statut des territoires occupes.
-
-Le president ukrainien a confirme indirectement ces informations lors d'une allocution, sans donner de details : "Des discussions serieuses sont en cours. Je ne veux pas compromettre leur issue, mais je peux dire que nous travaillons dur pour une paix juste."
-
-La Russie n'a pas fait de declaration officielle, mais des sources proches du Kremlin ont confirme a plusieurs medias occidentaux que les negociations etaient "dans une phase avancee". La communaute internationale retient son souffle.`,
-      imageUrl: 'https://images.unsplash.com/photo-1605000797499-95a51c5269ae?w=800',
+      title: "Économie française : le chômage remonte à 8,2% au premier trimestre",
+      slug: 'economie-chomage-remonte',
+      excerpt: "L'INSEE publie des chiffres décevants sur l'emploi, avec une hausse pour le troisième trimestre consécutif.",
+      content: `<p>Le taux de chômage en France a progressé de 0,3 point au premier trimestre 2026 pour s'établir à 8,2% de la population active, selon les données de l'INSEE.</p>
+<p>Cette augmentation touche principalement les jeunes de moins de 25 ans, dont le taux de chômage atteint désormais 22,5%, et les travailleurs seniors en reconversion.</p>
+<h2>Des causes multiples</h2>
+<p>Les économistes pointent plusieurs facteurs : le ralentissement de la croissance mondiale, l'impact de la numérisation sur certains emplois peu qualifiés, et les effets tardifs de la hausse des taux d'intérêt sur l'investissement des entreprises.</p>
+<h2>Les secteurs les plus touchés</h2>
+<p>La construction et le commerce de détail sont les deux secteurs ayant le plus souffert. À l'inverse, les services numériques et la santé continuent de recruter activement.</p>`,
+      image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&q=80',
+      imageCaption: "Agence Pôle emploi dans le centre de Paris.",
+      imageCredit: 'Thomas Coex / AFP',
+      badge: 'ANALYSE',
+      categoryId: catEco.id,
+      authorId: paul.id,
+      featured: false,
+      views: 920,
+      daysAgo: 7,
+    },
+    {
+      title: "Ligue des champions : le PSG s'impose face à Manchester City en demi-finale",
+      slug: 'ldc-psg-manchester-city',
+      excerpt: "Le club parisien se qualifie pour sa troisième finale de Ligue des champions après une prestation magistrale.",
+      content: `<p>Le Paris Saint-Germain s'est qualifié pour la finale de la Ligue des champions en s'imposant face à Manchester City sur l'ensemble des deux matches (3-1, 2-0).</p>
+<p>Au retour à l'Etihad Stadium, le PSG a réussi à tenir le score nul pendant 70 minutes avant que Kylian Mbappé ne scelle la qualification d'une frappe foudroyante dans la lucarne du gardien anglais.</p>
+<h2>Une équipe collective</h2>
+<p>Au-delà de l'individualité de son attaquant vedette, c'est bien la solidité collective du PSG qui a permis cette qualification. La défense parisienne a été quasiment irréprochable sur les deux matches.</p>
+<p>La finale aura lieu à Munich le 31 mai. Le PSG affrontera soit le Real Madrid, soit le Bayern, les deux équipes se retrouvant dans l'autre demi-finale.</p>`,
+      image: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=800&q=80',
+      imageCaption: 'Le PSG fête sa qualification pour la finale de la Ligue des champions.',
+      imageCredit: 'Franck Fife / AFP',
+      badge: null,
+      categoryId: catSport.id,
+      authorId: jean.id,
+      featured: false,
+      views: 5200,
+      daysAgo: 8,
+    },
+    {
+      title: "Tensions en mer de Chine : Pékin et Washington au bord de la crise",
+      slug: 'mer-chine-tensions-pekin-washington',
+      excerpt: "Un incident naval dans le détroit de Taïwan a provoqué une escalade diplomatique sans précédent.",
+      content: `<p>La situation en mer de Chine méridionale s'est brusquement tendue après qu'un destroyer américain et une frégate chinoise se sont frôlés dans le détroit de Taïwan, à quelques dizaines de mètres de distance.</p>
+<p>Washington assure que son navire effectuait une "opération de liberté de navigation" dans des eaux internationales. Pékin dénonce une "intrusion provocatrice dans les eaux souveraines chinoises".</p>
+<h2>Risque d'escalade</h2>
+<p>Les analystes s'inquiètent d'une escalade involontaire. "La marge d'erreur est de plus en plus mince dans cette zone", avertit un expert en sécurité régionale.</p>
+<p>Le département d'État américain a convoqué l'ambassadeur de Chine pour s'expliquer sur les manœuvres "dangereuses" de la marine chinoise.</p>`,
+      image: 'https://images.unsplash.com/photo-1605170439002-90845e8c0137?w=800&q=80',
+      imageCaption: 'Un destroyer de la marine américaine en mer de Chine méridionale.',
+      imageCredit: 'US Navy',
+      badge: 'EXCLUSIF',
+      categoryId: catInt.id,
+      authorId: marie.id,
       featured: true,
-      authorId: jeanpierre.id,
-      categoryId: international.id,
-      tagIds: [tags[3].id, tags[1].id],
+      views: 4850,
+      daysAgo: 9,
     },
     {
-      title: "Moyen-Orient : sommet d'urgence a Paris pour relancer les negociations de paix",
-      slug: "moyen-orient-sommet-urgence-paris-relancer-negociations-paix",
-      excerpt: "La France accueille un sommet diplomatique d'urgence reunissant les representants de vingt-deux pays et organisations internationales pour tenter de relancer le processus de paix.",
-      content: `Paris est le centre du monde diplomatique ce mercredi avec la tenue d'un sommet d'urgence sur la situation au Moyen-Orient. Vingt-deux pays et organisations internationales, dont les Etats-Unis, la Chine, les pays arabes moderateurs et l'Union europeenne, se retrouvent au Quai d'Orsay pour tenter de relancer un processus de paix au point mort.
-
-La France, qui assume une presidence tournante du Conseil de securite de l'ONU, a pris l'initiative d'organiser cette reunion apres les derniers episodes de violence qui ont fait craindre une escalade regionale.
-
-Le ministre francais des Affaires etrangeres a ouvert les discussions en appelant a "un cessez-le-feu immediat et sans conditions" et a "une reprise des negociations sous egide internationale". "La France est prete a assumer ses responsabilites dans ce processus", a-t-il declare.
-
-Les attentes sont mesurees. Plusieurs des participants ont signifie en amont qu'ils ne viendraient pas signer un accord mais qu'ils esperaient poser les bases d'un dialogue reanime. "Un sommet ne resout pas un conflit, mais il peut ouvrir des espaces de dialogue", resume un diplomate occidental sous couvert d'anonymat.`,
-      imageUrl: 'https://images.unsplash.com/photo-1474546652694-a33dd8161d66?w=800',
+      title: "Grève SNCF : le trafic perturbé jusqu'à vendredi dans toute la France",
+      slug: 'greve-sncf-trafic-perturbe',
+      excerpt: "Les syndicats de cheminots ont déclenché un mouvement de grève reconductible contre un projet de réorganisation.",
+      content: `<p>Le trafic ferroviaire est fortement perturbé suite à un appel à la grève lancé par trois syndicats représentatifs à la SNCF. Selon la direction, un TGV sur quatre circule, et un train régional sur trois.</p>
+<p>Les syndicats protestent contre un projet de réorganisation qui, selon eux, menace plusieurs centaines d'emplois de conduite et dénature les conditions de travail des cheminots.</p>
+<h2>Des voyageurs bloqués</h2>
+<p>Des milliers de voyageurs se retrouvent bloqués dans les grandes gares, notamment à Paris-Montparnasse et Lyon-Part-Dieu. La SNCF recommande de reporter les déplacements non urgents.</p>
+<p>La direction de la SNCF a indiqué avoir saisi le médiateur du travail et proposé des réunions de négociation dès jeudi.</p>`,
+      image: 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=800&q=80',
+      imageCaption: "Des voyageurs attendent sur le quai d'une gare parisienne.",
+      imageCredit: 'Alain Jocard / AFP',
+      badge: null,
+      categoryId: catSoc.id,
+      authorId: jean.id,
       featured: false,
-      authorId: jeanpierre.id,
-      categoryId: international.id,
-      tagIds: [tags[1].id],
+      views: 2700,
+      daysAgo: 10,
     },
     {
-      title: "Chine : la croissance economique ralentit, Pekin revoit ses objectifs a la baisse",
-      slug: "chine-croissance-economique-ralentit-pekin-revoit-objectifs-baisse",
-      excerpt: "La croissance du PIB chinois s'est etablie a 4,1% au dernier trimestre, sous l'objectif gouvernemental de 5%. Une deceleration qui inquiete les marches mondiaux.",
-      content: `La deuxieme economie mondiale ralentit plus vite que prevu. Les statistiques officielles chinoises font etat d'une croissance du PIB de 4,1% au dernier trimestre, significativement en dessous de l'objectif gouvernemental de 5%. Ce ralentissement, attribue a la crise du secteur immobilier, a une demande interieure morose et a des tensions commerciales avec l'Occident, inquiete les economists mondiaux.
-
-Le gouvernement chinois a annonce une serie de mesures de stimulation : reduction des taux d'interet, injection de liquidites dans le systeme bancaire et grands travaux d'infrastructure. Mais les analystes doutent que ces mesures soient suffisantes pour atteindre les objectifs de croissance a court terme.
-
-"La Chine entre dans une nouvelle phase de son developpement economique, moins dependante des investissements massifs et de l'export. Cette transition est douloureuse mais necessaire", analyse un economiste specialiste de l'Asie.
-
-Pour les economies europeennes et notamment francaise, ce ralentissement chinois n'est pas une bonne nouvelle : les exportations de produits de luxe et d'aeronautique vers la Chine pourraient etre affectees.`,
-      imageUrl: 'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=800',
+      title: "AI Act : ce que la loi européenne sur l'IA change pour les entreprises",
+      slug: 'ai-act-loi-ia-entreprises-changements',
+      excerpt: "Le règlement européen sur l'IA entre en vigueur. Les entreprises ont 18 mois pour se mettre en conformité.",
+      content: `<p>Le règlement européen sur l'intelligence artificielle (AI Act) est officiellement entré en vigueur. Les entreprises ont 18 mois pour se conformer aux nouvelles règles, sous peine de lourdes amendes.</p>
+<p>Le texte classe les systèmes d'IA en quatre niveaux de risque : interdit, à haut risque, à risque limité et à risque minimal.</p>
+<h2>Des obligations concrètes</h2>
+<p>Pour les systèmes à haut risque – qui incluent notamment les outils de recrutement, de crédit et les logiciels médicaux –, les entreprises devront documenter leurs données d'entraînement, garantir la supervision humaine et passer des audits réguliers.</p>
+<p>Les amendes peuvent atteindre jusqu'à 30 millions d'euros ou 6% du chiffre d'affaires mondial pour les infractions les plus graves.</p>`,
+      image: 'https://images.unsplash.com/photo-1655720828018-edd2daec9349?w=800&q=80',
+      imageCaption: "Les nouvelles règles européennes concernent tous les systèmes d'IA commerciaux.",
+      imageCredit: 'Shutterstock',
+      badge: 'ANALYSE',
+      categoryId: catPix.id,
+      authorId: paul.id,
       featured: false,
-      authorId: jeanpierre.id,
-      categoryId: international.id,
-      tagIds: [],
+      views: 1390,
+      daysAgo: 11,
     },
     {
-      title: "Etats-Unis : les elections presidentielles s'annoncent comme les plus serrees depuis des decennies",
-      slug: "etats-unis-elections-presidentielles-annoncent-plus-serrees-depuis-decennies",
-      excerpt: "A quelques semaines des elections presidentielles americaines, les sondages montrent une course extremement serree entre les deux candidats, avec des Etats pivots qui peuvent basculer.",
-      content: `La campagne presidientielle americaine entre dans sa phase finale dans un climat de tension extreme. Les derniers sondages nationaux donnent les deux candidats a moins de deux points de pourcentage d'ecart, une proximite qui fait redouter une nuit electorale longue et potentiellement contestee.
-
-Tout se joue dans une poignee d'Etats pivot : Pennsylvanie, Michigan, Wisconsin, Arizona, Georgia et Nevada. C'est dans ces six Etats que l'election sera gagnee ou perdue. Les deux camps y consacrent des ressources considerables et les candidats y multiplient les meetings.
-
-Les grands thèmes de la campagne sont l'economie et l'inflation, la politique migratoire et la securite interieure, ainsi que les deux guerres en cours en Ukraine et au Moyen-Orient. Sur ces sujets, les deux candidats proposent des visions radicalement differentes.
-
-En Europe, et notamment en France, les chancelleries suivent l'evolution avec une inquietude non dissumulee. L'identite du futur president americain aura des consequences directes sur l'engagement de Washington dans l'OTAN, le soutien a l'Ukraine et les relations commerciales transatlantiques.`,
-      imageUrl: 'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?w=800',
-      featured: false,
-      authorId: jeanpierre.id,
-      categoryId: international.id,
-      tagIds: [],
-    },
-    {
-      title: "G20 : sommet sous tension, la reforme de la gouvernance mondiale au coeur des debats",
-      slug: "g20-sommet-sous-tension-reforme-gouvernance-mondiale-coeur-debats",
-      excerpt: "Les dirigeants des vingt plus grandes economies mondiales se sont retrouves pour un sommet qui promet d'etre houleux. La reforme du FMI, la dette des pays pauvres et le changement climatique sont au programme.",
-      content: `Le sommet du G20 qui s'est ouvert hier dans la capitale du pays hote reunira pendant deux jours les dirigeants des vingt plus grandes puissances economiques du monde. L'agenda est charge et les tensions diplomatiques sont palpables avant meme le debut des sessions plenieres.
-
-Au coeur des debats : la reforme du Fonds monetaire international et de la Banque mondiale pour donner plus de poids aux pays emergents, la question de la dette des pays en developpement qui atteint des niveaux alarmants, et les engagements climatiques.
-
-Le President francais portera la voix de l'Union europeenne sur la transition energetique, plaidant pour un "fonds vert international" mieux dote. Il rencontrera en marge du sommet plusieurs homologues pour discuter de la situation au Moyen-Orient.
-
-Les ONG qui manifestent a l'exterieur du centre de conference reclament une taxation des super-riches a l'echelle mondiale et une annulation de la dette des pays les moins avances. Des revendications que certains gouvernements du G20 ont promise d'inscrire a l'agenda, sans grand espoir d'aboutir a des decisions concretes.`,
-      imageUrl: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800',
-      featured: false,
-      authorId: jeanpierre.id,
-      categoryId: international.id,
-      tagIds: [tags[1].id, tags[5].id],
-    },
-    {
-      title: "Migration : l'UE adopte le nouveau Pacte sur la migration, un compromis douloureux",
-      slug: "migration-ue-adopte-nouveau-pacte-migration-compromis-douloureux",
-      excerpt: "Apres des annees de negociations tendues, les Etats membres de l'Union europeenne ont finalement adopte le nouveau Pacte sur la migration et l'asile. Un accord que personne n'est vraiment satisfait.",
-      content: `L'Union europeenne a finalement reussi l'impossible : adopter un accord commun sur la gestion des migrations. Le nouveau Pacte sur la migration et l'asile a ete approuve par le Parlement europeen et le Conseil de l'UE apres des annees de negociations. Mais si tous les Etats membres l'ont ratifie, nombreux sont ceux qui le font "en serrant les dents".
-
-Le texte prevoit un systeme de solidarite obligatoire entre Etats membres : ceux qui refusent d'accueillir des migrants devront soit contribuer financierement, soit apporter une aide operationnelle aux pays de premiere entree. Des procedures d'asile accelerees aux frontieres exterieures sont egalement prevues.
-
-Les organisations de defense des droits de l'homme ont vivement critique l'accord, estimant qu'il "sacrifie les droits fondamentaux sur l'autel du compromis politique". Les pays du sud (Italie, Grece, Espagne) estiment quant a eux que la solidarite prevue est insuffisante. Les pays du nord (Pologne, Hongrie, Tcheque) ont voye leurs preferences pour une approche plus restrictive partiellement satisfaites.
-
-La mise en oeuvre pratique sera un defi considerabl : construire les infrastructures necessaires, former les agents, etablir les cooperations avec les pays tiers. Un chantier pour les cinq prochaines annees au minimum.`,
-      imageUrl: 'https://images.unsplash.com/photo-1449034446853-66c86144b0ad?w=800',
-      featured: false,
-      authorId: jeanpierre.id,
-      categoryId: international.id,
-      tagIds: [tags[1].id],
-    },
-    {
-      title: "Afrique : le Sahel face a l'expansion jihadiste, la communaute internationale alerte",
-      slug: "afrique-sahel-face-expansion-jihadiste-communaute-internationale-alerte",
-      excerpt: "Les groupes jihadistes etendent leur emprise dans la zone sahelo-saharienne malgre la presence militaire internationale. Une crise humanitaire et securitaire qui s'aggrave.",
-      content: `La situation securitaire dans la zone du Sahel continue de se deteriorer. Selon le dernier rapport de l'ONU, les groupes armes jihadistes ont etendu leur presence a de nouvelles zones en un an, touchant desormais des regions jusqu'ici epargnees au Mali, au Niger, au Burkina Faso et dans les pays cotiers voisins.
-
-Le retrait des forces militaires etrangeres de plusieurs de ces pays, conjugue a la montee en puissance de ces groupes armes, a cree un vide securitaire que les armees nationales peinent a combler. Les populations civiles sont les premieres victimes : villages incendies, deplacements de masse, blocages de l'aide humanitaire.
-
-Sur le plan humanitaire, le Programme alimentaire mondial estime que 8 millions de personnes sont en situation d'insecurite alimentaire severe dans cette region. Les ecoles et les hopitaux ferment sous les menaces. Une generation d'enfants grandit sans acces a l'education.
-
-La communaute internationale s'interroge sur les reponses a apporter. Les approches purement militaires ont montre leurs limites. Des voix s'elevent pour prioriser le developpement economique, la gouvernance et la lutte contre la corruption comme conditions du retablissement de la securite.`,
-      imageUrl: 'https://images.unsplash.com/photo-1547469096-8b3f2e8a2aa5?w=800',
-      featured: false,
-      authorId: jeanpierre.id,
-      categoryId: international.id,
-      tagIds: [],
-    },
-    {
-      title: "COP30 : les engagements restent insuffisants, la frustration monte parmi les pays vulnerables",
-      slug: "cop30-engagements-restent-insuffisants-frustration-monte-pays-vulnerables",
-      excerpt: "La trentieme conference des parties sur le climat s'est achevee avec un accord juge insuffisant par les pays les plus vulnerables au rechauffement climatique. Les scientifiques sont deçus.",
-      content: `La trentieme Conference des parties sur le climat (COP30) qui s'est tenue au Bresil s'est achevee avec un accord qui laisse un gout amer. Si les negociateurs ont reussi a s'entendre sur un texte final, les pays les plus vulnerables au changement climatique et les organisations scientifiques ont exprime leur profonde deception.
-
-Les engagements de reduction des emissions pris par les grandes puissances sont juges "tres insuffisants" pour maintenir le rechauffement sous la barre des 1,5°C. Un rapport du GIEC, presente en marge de la conference, estime que les politiques actuelles conduisent a un rechauffement de 2,7°C d'ici 2100.
-
-Le contentieux sur le financement climatique est reste au coeur des tensions. Les pays en developpement reclament 1 000 milliards de dollars par an pour financer leur transition energetique et s'adapter aux changements climatiques. L'accord final prevoit un objectif de 300 milliards, loin du compte selon les pays du Sud.
-
-"Nous venons signer notre sentence de mort", avait declare avec fracas le delegue d'un Etat insulaire du Pacifique lors de la derniere seance pleniere, sa declaration reprise en boucle par les medias du monde entier.`,
-      imageUrl: 'https://images.unsplash.com/photo-1535378917042-10a22c95931a?w=800',
-      featured: false,
+      title: "Logement : les loyers parisiens ont augmenté de 12% en deux ans",
+      slug: 'loyers-parisiens-hausse',
+      excerpt: "Malgré l'encadrement des loyers, les prix dans la capitale continuent de progresser, creusant la fracture sociale.",
+      content: `<p>Une étude publiée par l'Observatoire des loyers de l'agglomération parisienne révèle que les loyers à Paris ont augmenté en moyenne de 12% sur les deux dernières années.</p>
+<p>L'encadrement des loyers, pourtant en vigueur depuis plusieurs années, est contourné par de nombreux propriétaires qui profitent de la notion de "complément de loyer".</p>
+<h2>Une crise structurelle</h2>
+<p>Au-delà de Paris, c'est l'ensemble des grandes métropoles françaises qui connaît une tension locative sans précédent. Lyon, Bordeaux et Rennes affichent des hausses de loyers supérieures à 15% sur la période.</p>
+<p>Selon les associations de locataires, des dizaines de milliers de ménages ont été contraints de quitter les centres-villes pour s'installer en périphérie.</p>`,
+      image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80',
+      imageCaption: "Immeuble haussmannien dans le 7e arrondissement de Paris.",
+      imageCredit: 'Lionel Bonaventure / AFP',
+      badge: 'ENQUETE',
+      categoryId: catSoc.id,
       authorId: marie.id,
-      categoryId: international.id,
-      tagIds: [tags[5].id, tags[1].id],
+      featured: false,
+      views: 2340,
+      daysAgo: 12,
+    },
+    {
+      title: "Tour de France 2026 : le parcours officiel dévoilé",
+      slug: 'tour-de-france-2026-parcours',
+      excerpt: "La Grande Boucle 2026 débutera à Barcelone avec un tracé exigeant de 21 étapes traversant cinq massifs montagneux.",
+      content: `<p>Amaury Sport Organisation a présenté le parcours officiel du Tour de France 2026. La course débutera à Barcelone le 4 juillet pour un Grand Départ à l'étranger, une tradition du Tour qui renforce son rayonnement international.</p>
+<p>Le tracé comprend 21 étapes pour 3 450 kilomètres au total, avec un profil particulièrement montagneux cette année.</p>
+<h2>Les étapes reines</h2>
+<p>La 17e étape s'annonce comme la plus difficile : elle enchaînera cinq cols mythiques en une seule journée, dont le Galibier et l'Izoard. Les organisateurs l'ont surnommée "l'étape du siècle".</p>
+<p>Le contre-la-montre final aura lieu à Paris, sur les Champs-Élysées, ce qui n'était plus arrivé depuis 2004.</p>`,
+      image: 'https://images.unsplash.com/photo-1541625602330-2277a4c46182?w=800&q=80',
+      imageCaption: "Le peloton du Tour de France dans les Alpes.",
+      imageCredit: 'Marco Bertorello / AFP',
+      badge: null,
+      categoryId: catSport.id,
+      authorId: jean.id,
+      featured: false,
+      views: 860,
+      daysAgo: 13,
+    },
+    {
+      title: "ChatGPT-5 : les premiers utilisateurs partagent leurs impressions",
+      slug: 'chatgpt-5-premiers-retours-utilisateurs',
+      excerpt: "OpenAI a lancé GPT-5 avec des capacités de raisonnement améliorées. Les retours sont contrastés mais globalement positifs.",
+      content: `<p>Deux semaines après son lancement, GPT-5 d'OpenAI suscite des réactions contrastées parmi ses utilisateurs. Les performances sur les tâches de raisonnement complexe sont nettement améliorées par rapport à la génération précédente.</p>
+<p>Les développeurs saluent les progrès en matière de génération de code et de débogage, tandis que certains utilisateurs notent des régressions sur des tâches créatives.</p>
+<h2>Ce qui change vraiment</h2>
+<p>La principale innovation de GPT-5 réside dans sa capacité à "réfléchir" avant de répondre, en décomposant les problèmes complexes en sous-étapes. Cette approche, inspirée du raisonnement humain, se révèle particulièrement efficace pour les mathématiques et la logique formelle.</p>`,
+      image: 'https://images.unsplash.com/photo-1679083216051-aa510a1a2c0e?w=800&q=80',
+      imageCaption: "Interface de ChatGPT-5 sur un ordinateur portable.",
+      imageCredit: 'OpenAI',
+      badge: 'ANALYSE',
+      categoryId: catPix.id,
+      authorId: paul.id,
+      featured: false,
+      views: 3230,
+      daysAgo: 14,
+    },
+    {
+      title: "Inflation : le panier de la ménagère bondit de 4,2% sur un an",
+      slug: 'inflation-panier-menagere-hausse',
+      excerpt: "Les prix alimentaires repartent à la hausse en France, pénalisant en priorité les ménages les plus modestes.",
+      content: `<p>L'inflation alimentaire est repartie à la hausse en France. Selon l'INSEE, les prix des produits alimentaires ont progressé de 4,2% sur un an, après une accalmie en 2025.</p>
+<p>Cette accélération touche particulièrement les produits frais (+6,8%), les huiles et graisses (+8,1%) et les produits laitiers (+5,3%).</p>
+<h2>Des ménages en difficulté</h2>
+<p>Selon les associations caritatives, le nombre de personnes ayant recours à l'aide alimentaire a augmenté de 18% en un an. Les banques alimentaires peinent à répondre à cette demande croissante.</p>
+<p>La grande distribution annonce de son côté un "bouclier qualité-prix" renforcé, avec 200 produits du quotidien dont les prix seront bloqués jusqu'à la fin de l'année.</p>`,
+      image: 'https://images.unsplash.com/photo-1543168256-418811576931?w=800&q=80',
+      imageCaption: "Rayons d'un supermarché en France.",
+      imageCredit: 'Philippe Huguen / AFP',
+      badge: null,
+      categoryId: catEco.id,
+      authorId: paul.id,
+      featured: false,
+      views: 1820,
+      daysAgo: 15,
+    },
+    {
+      title: "Guerre en Ukraine : Kyiv repousse une offensive majeure sur le front est",
+      slug: 'ukraine-offensive-russe-front-est',
+      excerpt: "L'armée ukrainienne affirme avoir repoussé une tentative de percée russe dans la région de Donetsk après des combats intenses.",
+      content: `<p>L'état-major ukrainien a annoncé avoir repoussé une offensive russe de grande envergure sur le front est du pays, dans la région de Donetsk. Les combats ont duré plusieurs jours et auraient causé de lourdes pertes dans les rangs russes.</p>
+<p>Cette offensive intervient après plusieurs semaines de relative accalmie sur le front, pendant lesquelles les deux camps procédaient à une réorganisation de leurs lignes.</p>
+<h2>Une situation toujours volatile</h2>
+<p>Les observateurs internationaux soulignent que si les forces ukrainiennes ont repoussé cette attaque, la situation demeure extrêmement tendue sur l'ensemble du front, long de plus de 1 200 kilomètres.</p>
+<p>Les alliés occidentaux ont annoncé de nouveaux packages d'aide militaire pour soutenir l'effort de guerre ukrainien.</p>`,
+      image: 'https://images.unsplash.com/photo-1643483713503-f2e6b5d9f9e5?w=800&q=80',
+      imageCaption: "Soldats ukrainiens en position défensive dans la région de Donetsk.",
+      imageCredit: 'Ukrainian Armed Forces',
+      badge: 'REPORTAGE',
+      categoryId: catInt.id,
+      authorId: marie.id,
+      featured: false,
+      views: 2980,
+      daysAgo: 16,
+    },
+    {
+      title: "Médecine : une thérapie génique guérit 15 enfants atteints d'une maladie rare",
+      slug: 'therapie-genique-enfants-maladie-rare',
+      excerpt: "Des résultats spectaculaires dans le traitement de la myopathie de Duchenne ouvrent une nouvelle ère médicale.",
+      content: `<p>Une équipe de chercheurs franco-américains a annoncé des résultats cliniques exceptionnels pour une nouvelle thérapie génique destinée à traiter la myopathie de Duchenne, une maladie génétique rare et invalidante qui touche principalement les garçons.</p>
+<p>Sur les 15 enfants traités dans le cadre de cet essai clinique de phase 2, tous ont montré une amélioration significative de leur force musculaire six mois après le traitement.</p>
+<h2>Un espoir pour les familles</h2>
+<p>Pour les familles d'enfants atteints de cette maladie, ces résultats sont une lueur d'espoir. "C'est la première fois depuis le diagnostic que mon fils peut se lever seul de sa chaise", témoigne la mère d'un des participants.</p>
+<p>La thérapie devrait faire l'objet d'une demande d'autorisation de mise sur le marché européen dans les 18 prochains mois.</p>`,
+      image: 'https://images.unsplash.com/photo-1576671081837-49000212a370?w=800&q=80',
+      imageCaption: "Laboratoire de recherche en thérapie génique.",
+      imageCredit: 'Sebastian Kaulitzki / Shutterstock',
+      badge: 'EXCLUSIF',
+      categoryId: catSci.id,
+      authorId: paul.id,
+      featured: false,
+      views: 3670,
+      daysAgo: 17,
+    },
+    {
+      title: "Crise agricole : des milliers d'agriculteurs manifestent à Paris",
+      slug: 'crise-agricole-manifestations-paris',
+      excerpt: "Plusieurs milliers d'agriculteurs ont envahi les boulevards parisiens pour protester contre les politiques agricoles.",
+      content: `<p>Pour la troisième fois en six mois, des milliers d'agriculteurs ont convergé vers Paris avec leurs tracteurs pour manifester leur mécontentement face aux politiques agricoles nationales et européennes.</p>
+<p>Les revendications portent notamment sur la simplification des normes environnementales, jugées trop contraignantes, et sur le renforcement des mesures de protection contre les importations à bas prix.</p>
+<h2>Des blocages sur les routes</h2>
+<p>Dès l'aube, des centaines de tracteurs ont bloqué plusieurs axes routiers en Île-de-France, provoquant d'importants embouteillages. La manifestation a rassemblé, selon les organisateurs, plus de 5 000 véhicules agricoles.</p>
+<p>Le ministre de l'Agriculture a annoncé une réunion d'urgence avec les syndicats agricoles en fin de semaine.</p>`,
+      image: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=800&q=80',
+      imageCaption: "Tracteurs sur les Champs-Élysées lors de la manifestation agricole.",
+      imageCredit: 'Christophe Ena / AP',
+      badge: null,
+      categoryId: catSoc.id,
+      authorId: jean.id,
+      featured: false,
+      views: 1890,
+      daysAgo: 18,
+    },
+    {
+      title: "Startup Lumia lève 40 millions d'euros pour révolutionner le diagnostic médical",
+      slug: 'startup-lumia-levee-fonds-medical',
+      excerpt: "La jeune entreprise utilise l'IA pour détecter précocement plusieurs cancers avec un taux de réussite de 94%.",
+      content: `<p>Lumia, startup parisienne fondée en 2022, annonce une levée de fonds de 40 millions d'euros en série B, menée par le fonds d'investissement européen Sofina et plusieurs fonds spécialisés dans la HealthTech.</p>
+<p>L'entreprise développe une technologie basée sur l'intelligence artificielle permettant de détecter précocement plusieurs types de cancers à partir d'une simple prise de sang.</p>
+<h2>Des résultats cliniques prometteurs</h2>
+<p>En phase de tests cliniques, la technologie de Lumia affiche un taux de détection de 94% pour le cancer du poumon à un stade précoce, contre 60% pour les méthodes conventionnelles.</p>
+<p>Les fonds levés permettront à la startup de déployer sa solution dans 50 établissements hospitaliers en France et en Allemagne dès l'année prochaine.</p>`,
+      image: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&q=80',
+      imageCaption: "L'équipe de Lumia dans son laboratoire à Paris.",
+      imageCredit: 'Lumia',
+      badge: null,
+      categoryId: catSci.id,
+      authorId: paul.id,
+      featured: false,
+      views: 2150,
+      daysAgo: 19,
+    },
+    {
+      title: "Cyberattaque massive : une vingtaine d'hôpitaux français paralysés",
+      slug: 'cyberattaque-hopitaux-france',
+      excerpt: "Des groupes de hackers ont frappé simultanément plusieurs établissements hospitaliers avec un ransomware sophistiqué.",
+      content: `<p>Une vague d'attaques de type ransomware a paralysé une vingtaine d'hôpitaux français dans la nuit de mercredi à jeudi. Les établissements touchés ont dû déprogrammer des opérations non urgentes et revenir aux procédures papier.</p>
+<p>L'Agence nationale de la sécurité des systèmes d'information (ANSSI) a été immédiatement saisie et travaille à restaurer les systèmes compromis.</p>
+<h2>Une attaque coordonnée</h2>
+<p>Les experts en cybersécurité notent que la coordination et la sophistication de cette attaque laissent penser qu'elle a été orchestrée par un groupe criminel organisé, disposant de moyens importants.</p>
+<p>Le ministre de la Santé a annoncé un plan d'urgence pour renforcer la cybersécurité des établissements de santé, avec un budget de 250 millions d'euros sur trois ans.</p>`,
+      image: 'https://images.unsplash.com/photo-1563986768494-4dee2763ff3f?w=800&q=80',
+      imageCaption: "Un technicien informatique tente de rétablir les systèmes hospitaliers.",
+      imageCredit: 'Kenzo Tribouillard / AFP',
+      badge: 'ENQUETE',
+      categoryId: catPix.id,
+      authorId: paul.id,
+      featured: false,
+      views: 2890,
+      daysAgo: 20,
+    },
+    {
+      title: "Le CAC 40 franchit pour la première fois les 10 000 points",
+      slug: 'cac40-franchit-10000-points',
+      excerpt: "L'indice phare de la bourse parisienne atteint un record historique, porté par les valeurs du luxe et la Tech.",
+      content: `<p>Le CAC 40 a franchi pour la première fois de son histoire la barre symbolique des 10 000 points, porté par les valeurs du luxe et une embellie sur les marchés obligataires européens.</p>
+<p>LVMH, Hermès et L'Oréal, qui représentent près de 30% du poids de l'indice, ont été les principales locomotives de cette hausse historique, affichant respectivement des gains de 3,2%, 2,8% et 2,1% sur la séance.</p>
+<h2>Causes et perspectives</h2>
+<p>Les analystes attribuent cette performance à la publication de résultats d'entreprises meilleurs que prévu, à une détente des tensions inflationnistes et à la perspective d'une baisse des taux directeurs de la BCE.</p>`,
+      image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&q=80',
+      imageCaption: "Traders sur le parquet de la Bourse de Paris.",
+      imageCredit: 'Eric Piermont / AFP',
+      badge: null,
+      categoryId: catEco.id,
+      authorId: paul.id,
+      featured: false,
+      views: 3100,
+      daysAgo: 21,
+    },
+    {
+      title: "Proche-Orient : les négociations de paix reprennent à Genève",
+      slug: 'proche-orient-negociations-paix-geneve',
+      excerpt: "Sous l'égide des Nations unies, les parties au conflit se retrouvent autour d'une même table pour la première fois.",
+      content: `<p>Des représentants de plusieurs pays du Proche-Orient se sont retrouvés à Genève pour une nouvelle session de négociations visant à aboutir à un cessez-le-feu durable et à jeter les bases d'un processus de paix.</p>
+<p>La délégation américaine a déclaré que des "progrès significatifs" avaient été réalisés dans les discussions préliminaires, sans toutefois donner plus de détails.</p>
+<h2>Un contexte diplomatique délicat</h2>
+<p>Ces négociations interviennent dans un contexte particulièrement complexe, marqué par des tensions persistantes sur le terrain et des divergences profondes entre les parties sur les conditions d'un accord.</p>
+<p>Le secrétaire général des Nations unies a appelé toutes les parties à "saisir cette fenêtre d'opportunité rare".</p>`,
+      image: 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800&q=80',
+      imageCaption: "La salle de conférence des Nations unies à Genève.",
+      imageCredit: 'AFP',
+      badge: 'REPORTAGE',
+      categoryId: catInt.id,
+      authorId: marie.id,
+      featured: true,
+      views: 4400,
+      daysAgo: 22,
+    },
+    {
+      title: "Exposition universelle 2030 : Paris officiellement désignée ville hôte",
+      slug: 'expo-universelle-2030-paris-ville-hote',
+      excerpt: "Le Bureau international des expositions a choisi Paris pour accueillir l'Exposition universelle 2030.",
+      content: `<p>Le Bureau international des expositions (BIE) a officiellement désigné Paris comme ville hôte de l'Exposition universelle 2030. La capitale française l'a emporté face à des candidatures de Riyad, Busan et Rome.</p>
+<p>L'événement, dont le thème sera "Les Voix pour la Planète", devrait accueillir plus de 80 millions de visiteurs sur six mois et générer plusieurs milliards d'euros de retombées économiques.</p>
+<h2>Un projet d'envergure</h2>
+<p>Les différents pavillons nationaux seront construits sur un site de 400 hectares dans la plaine de France. Le projet prévoit également la création de nouvelles infrastructures de transport.</p>`,
+      image: 'https://images.unsplash.com/photo-1431274172761-fcdab704f78c?w=800&q=80',
+      imageCaption: "La Tour Eiffel, symbole de Paris candidate à l'Expo 2030.",
+      imageCredit: 'Christophe Boisvieux / Corbis',
+      badge: null,
+      categoryId: catInt.id,
+      authorId: marie.id,
+      featured: false,
+      views: 1650,
+      daysAgo: 23,
+    },
+    {
+      title: "Élections municipales : les résultats du premier tour surprise",
+      slug: 'elections-municipales-premier-tour-resultats',
+      excerpt: "Les résultats du premier tour des élections municipales partielles révèlent une fragmentation du paysage politique.",
+      content: `<p>Les résultats du premier tour des élections municipales partielles dans une quinzaine de communes ont confirmé la fragmentation du paysage politique français.</p>
+<p>Dans plusieurs villes importantes, aucun candidat n'a réussi à dépasser la barre des 30%, annonçant des triangulaires ou quadrangulaires inédites au second tour.</p>
+<h2>La gauche en tête dans les grandes villes</h2>
+<p>Dans les grandes métropoles, les candidats de gauche ont globalement maintenu leurs positions, bénéficiant d'un fort ancrage local et d'une mobilisation électorale solide.</p>`,
+      image: 'https://images.unsplash.com/photo-1540910419892-4a36d2c3266c?w=800&q=80',
+      imageCaption: "Bureau de vote lors du premier tour des élections municipales.",
+      imageCredit: 'Charly Triballeau / AFP',
+      badge: null,
+      categoryId: catPol.id,
+      authorId: jean.id,
+      featured: false,
+      views: 2200,
+      daysAgo: 24,
+    },
+    {
+      title: "Santé mentale : la dépression touche désormais 15% des Français",
+      slug: 'sante-mentale-depression-france',
+      excerpt: "Une nouvelle étude révèle une hausse alarmante des troubles dépressifs en France, particulièrement chez les 18-35 ans.",
+      content: `<p>Selon une étude publiée par Santé publique France, 15% de la population française souffre actuellement d'un trouble dépressif caractérisé, soit une augmentation de 4 points par rapport à 2020.</p>
+<p>Cette hausse est particulièrement marquée chez les jeunes adultes de 18 à 35 ans, dont le taux de prévalence atteint 23%.</p>
+<h2>Des causes multiples</h2>
+<p>Les experts pointent une combinaison de facteurs : l'anxiété liée au contexte géopolitique et climatique, la précarité économique, et l'impact des réseaux sociaux sur l'image de soi.</p>
+<p>Le gouvernement a annoncé un plan de renforcement de l'offre de soins en santé mentale, avec la création de 3 000 postes de psychologues conventionnés.</p>`,
+      image: 'https://images.unsplash.com/photo-1510832842230-87253f48d74f?w=800&q=80',
+      imageCaption: "Consultation en cabinet de psychologie.",
+      imageCredit: 'Shutterstock',
+      badge: 'ENQUETE',
+      categoryId: catSoc.id,
+      authorId: jean.id,
+      featured: false,
+      views: 3450,
+      daysAgo: 25,
+    },
+    {
+      title: "Rolland Garros 2026 : Alcaraz sacré pour la troisième année consécutive",
+      slug: 'roland-garros-2026-alcaraz-sacre',
+      excerpt: "L'Espagnol Carlos Alcaraz a dominé la finale face au Grec Stefanos Tsitsipas pour remporter son troisième Roland-Garros.",
+      content: `<p>Carlos Alcaraz a remporté son troisième Roland-Garros consécutif en dominant le Grec Stefanos Tsitsipas en quatre sets (6-3, 6-7, 7-5, 6-1) lors d'une finale de haute voltige.</p>
+<p>À 23 ans, l'Espagnol confirme sa domination sur la terre battue et s'inscrit dans la lignée des plus grands champions de ce tournoi.</p>
+<h2>Une finale de haut niveau</h2>
+<p>La finale a été marquée par un second set de très haute qualité, avec de nombreux échanges longs et spectaculaires. Tsitsipas a réussi à arracher ce set au tie-break après une heure et vingt minutes de jeu.</p>`,
+      image: 'https://images.unsplash.com/photo-1622279457486-62dcc4a431d6?w=800&q=80',
+      imageCaption: "Carlos Alcaraz soulève son troisième trophée Roland-Garros.",
+      imageCredit: 'Thomas Samson / AFP',
+      badge: null,
+      categoryId: catSport.id,
+      authorId: jean.id,
+      featured: false,
+      views: 4100,
+      daysAgo: 26,
+    },
+    {
+      title: "Musique : le retour surprise d'Adele avec un album folk",
+      slug: 'musique-retour-adele-album-folk',
+      excerpt: "La star britannique revient avec un album acoustique inattendu qui marque une rupture avec son style habituel.",
+      content: `<p>Adele a créé la surprise en annonçant la sortie d'un album acoustique folk, rupture avec les grandes ballades orchestrées qui ont fait sa renommée. L'album, sobrement intitulé "Roots", est disponible depuis ce matin sur toutes les plateformes de streaming.</p>
+<p>L'artiste britannique s'est entourée de musiciens traditionnels irlandais et gallois pour enregistrer cet album dans une grange du Pays de Galles.</p>
+<h2>Une prise de risque artistique</h2>
+<p>La chanteuse explique dans un communiqué que ce projet lui tenait à cœur depuis des années. "J'avais envie de revenir à une musique plus dépouillée, plus intime, loin des grandes productions."</p>`,
+      image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=800&q=80',
+      imageCaption: "Adele lors de la séance photo pour son nouvel album.",
+      imageCredit: 'Columbia Records',
+      badge: null,
+      categoryId: catCul.id,
+      authorId: marie.id,
+      featured: false,
+      views: 5600,
+      daysAgo: 27,
+    },
+    {
+      title: "Nucléaire : EDF lance la construction de six nouveaux réacteurs EPR2",
+      slug: 'nucleaire-edf-construction-epr2',
+      excerpt: "Le premier coup de pioche pour les nouveaux réacteurs nucléaires a été donné à Penly, en Normandie.",
+      content: `<p>EDF a officiellement lancé la construction de ses six nouveaux réacteurs nucléaires EPR2 avec le premier coup de pioche du chantier de Penly, en Normandie. Le projet représente un investissement total de 52 milliards d'euros.</p>
+<p>Ces nouvelles centrales devront permettre à la France de maintenir sa capacité de production nucléaire alors que les vieux réacteurs arrivent en fin de vie dans les années 2030.</p>
+<h2>Un chantier de grande envergure</h2>
+<p>Le chantier de Penly emploiera jusqu'à 8 000 travailleurs au pic de construction, prévue pour 2027-2030. La première tranche devrait être mise en service avant 2035.</p>`,
+      image: 'https://images.unsplash.com/photo-1615109398623-88346a601842?w=800&q=80',
+      imageCaption: "Centrale nucléaire de Penly, en Seine-Maritime.",
+      imageCredit: 'EDF Médiathèque',
+      badge: null,
+      categoryId: catEco.id,
+      authorId: paul.id,
+      featured: false,
+      views: 2780,
+      daysAgo: 28,
+    },
+    {
+      title: "Jeux olympiques 2028 : la France envoie sa plus grande délégation à Los Angeles",
+      slug: 'jeux-olympiques-2028-france-delegation-los-angeles',
+      excerpt: "Le Comité national olympique a annoncé une délégation record de 450 athlètes pour les Jeux de Los Angeles.",
+      content: `<p>Le Comité national olympique et sportif français (CNOSF) a annoncé une délégation de 450 athlètes pour les Jeux olympiques de Los Angeles 2028, la plus importante de l'histoire de la participation française aux Jeux d'été.</p>
+<p>Fort du succès des Jeux de Paris 2024, la France vise un objectif de 35 médailles dont au moins 10 en or.</p>
+<h2>Les sports phares</h2>
+<p>La natation, la judo et l'escrime constitueront les principaux viviers de médailles français. Des espoirs sont également nourris en athlétisme, en cyclisme et en rugby à sept.</p>`,
+      image: 'https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=800&q=80',
+      imageCaption: "Le drapeau français lors de la cérémonie d'ouverture des JO de Paris 2024.",
+      imageCredit: 'Loic Venance / AFP',
+      badge: null,
+      categoryId: catSport.id,
+      authorId: jean.id,
+      featured: false,
+      views: 1480,
+      daysAgo: 29,
+    },
+    {
+      title: "Littérature : le prix Goncourt attribué à une romancière de 29 ans",
+      slug: 'prix-goncourt-romanciere-29-ans',
+      excerpt: "Camille Marchand remporte le Goncourt pour son premier roman, une œuvre sur l'exil et l'identité.",
+      content: `<p>Camille Marchand, 29 ans, a remporté le prix Goncourt pour son premier roman "La Terre des absents", publié aux éditions Gallimard. C'est l'une des plus jeunes lauréates de l'histoire du prix.</p>
+<p>Le roman raconte le destin d'une famille franco-algérienne sur quatre générations, de la guerre d'Algérie à nos jours. L'académie a salué "une écriture d'une maturité et d'une puissance rares".</p>
+<h2>Un parcours atypique</h2>
+<p>Camille Marchand, fille d'un ouvrier et d'une institutrice, a grandi à Roubaix. Elle a écrit ce roman pendant sa thèse de doctorat en histoire coloniale.</p>`,
+      image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=800&q=80',
+      imageCaption: "Camille Marchand lors de la remise du Prix Goncourt au restaurant Drouant.",
+      imageCredit: 'Bertrand Guay / AFP',
+      badge: null,
+      categoryId: catCul.id,
+      authorId: marie.id,
+      featured: false,
+      views: 1890,
+      daysAgo: 30,
     },
   ];
-
-  // Create articles
-  let createdCount = 0;
-  const now = new Date();
 
   for (let i = 0; i < articlesData.length; i++) {
-    const { tagIds, ...articleFields } = articlesData[i];
-    const publishedAt = new Date(now.getTime() - i * 4 * 60 * 60 * 1000); // every 4 hours
-
-    const article = await prisma.article.create({
-      data: {
-        ...articleFields,
+    const d = articlesData[i];
+    const publishedAt = new Date(now.getTime() - d.daysAgo * 24 * 60 * 60 * 1000);
+    const readingTime = Math.ceil(d.content.replace(/<[^>]*>/g, '').split(/\s+/).length / 200);
+    await prisma.article.upsert({
+      where: { slug: d.slug },
+      update: {},
+      create: {
+        title: d.title,
+        slug: d.slug,
+        excerpt: d.excerpt,
+        content: d.content,
+        image: d.image,
+        imageCaption: d.imageCaption,
+        imageCredit: d.imageCredit,
+        badge: d.badge,
         status: 'published',
-        views: Math.floor(Math.random() * 5000) + 100,
-        publishedAt,
+        featured: d.featured,
+        views: d.views,
+        readingTime,
+        createdAt: publishedAt,
+        updatedAt: publishedAt,
+        authorId: d.authorId,
+        categoryId: d.categoryId,
       },
     });
-
-    if (tagIds && tagIds.length > 0) {
-      await Promise.all(
-        tagIds.map((tagId) =>
-          prisma.articleTag.create({
-            data: { articleId: article.id, tagId },
-          })
-        )
-      );
-    }
-
-    createdCount++;
   }
-
-  console.log(`Created ${createdCount} articles`);
+  console.log(`${articlesData.length} articles created`);
 
   // Newsletter subscribers
-  const subscribers = [
-    'alice.martin@example.com',
-    'bob.dupont@example.fr',
-    'carol.bernard@example.com',
-    'david.petit@example.fr',
-    'emma.richard@example.com',
-  ];
+  await prisma.newsletter.upsert({
+    where: { email: 'test@example.com' },
+    update: {},
+    create: { email: 'test@example.com', subscribed: true, token: crypto.randomUUID() },
+  });
 
-  for (const email of subscribers) {
-    await prisma.newsletterSubscriber.create({
-      data: {
-        email,
-        confirmedAt: new Date(),
-      },
-    });
-  }
-
-  console.log(`Created ${subscribers.length} newsletter subscribers`);
-  console.log('Seed completed successfully!');
+  console.log('Seed done!');
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .catch((e) => { console.error(e); process.exit(1); })
+  .finally(() => prisma.$disconnect());

@@ -10,28 +10,17 @@ const config: Config = {
     extend: {
       colors: {
         lemonde: {
-          blue: '#003f8a',
-          'blue-dark': '#002d6b',
-          'blue-light': '#1a5fa0',
-          red: '#e30613',
+          red: '#D31F1F',
+          'red-dark': '#b01818',
+          black: '#1A1A1A',
           gray: '#4a4a4a',
           'gray-light': '#f5f5f5',
-          'gray-border': '#d9d9d9',
-          gold: '#c9a227',
+          'gray-border': '#e8e8e8',
         },
       },
       fontFamily: {
-        serif: ['Georgia', 'Times New Roman', 'serif'],
-        sans: ['Arial', 'Helvetica', 'sans-serif'],
-      },
-      typography: {
-        DEFAULT: {
-          css: {
-            maxWidth: '65ch',
-            color: '#1a1a1a',
-            lineHeight: '1.7',
-          },
-        },
+        serif: ['var(--font-playfair)', 'Georgia', 'Times New Roman', 'serif'],
+        sans: ['var(--font-inter)', 'Arial', 'Helvetica', 'sans-serif'],
       },
     },
   },

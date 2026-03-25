@@ -1,11 +1,9 @@
 import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { PrismaAdapter } from '@auth/prisma-adapter';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
   session: {
     strategy: 'jwt',
   },
@@ -25,7 +23,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email: credentials.email as string },
         });
 
-        if (!user || !user.password) {
+        if (!user) {
           return null;
         }
 
@@ -39,7 +37,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         return {
-          id: user.id,
+          id: String(user.id),
           email: user.email,
           name: user.name,
           role: user.role,

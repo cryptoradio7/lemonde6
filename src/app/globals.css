@@ -3,11 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --lemonde-blue: #003f8a;
-  --lemonde-blue-dark: #002d6b;
-  --lemonde-red: #e30613;
+  --lemonde-red: #D31F1F;
+  --lemonde-red-dark: #b01818;
+  --lemonde-black: #1A1A1A;
   --lemonde-gray: #4a4a4a;
-  --lemonde-gold: #c9a227;
+  --lemonde-gray-light: #f5f5f5;
+  --lemonde-gray-border: #e8e8e8;
 }
 
 @layer base {
@@ -17,11 +18,11 @@
 
   body {
     @apply text-gray-900 bg-white;
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: var(--font-inter), Arial, Helvetica, sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: Georgia, 'Times New Roman', serif;
+    font-family: var(--font-playfair), Georgia, 'Times New Roman', serif;
     @apply font-bold leading-tight;
   }
 
@@ -36,11 +37,11 @@
   }
 
   .btn-primary {
-    @apply bg-lemonde-blue text-white px-4 py-2 rounded hover:bg-lemonde-blue-dark transition-colors duration-200 font-medium;
+    @apply bg-[#D31F1F] text-white px-4 py-2 rounded hover:bg-[#b01818] transition-colors duration-200 font-medium;
   }
 
   .btn-secondary {
-    @apply border border-lemonde-blue text-lemonde-blue px-4 py-2 rounded hover:bg-lemonde-blue hover:text-white transition-colors duration-200 font-medium;
+    @apply border border-[#D31F1F] text-[#D31F1F] px-4 py-2 rounded hover:bg-[#D31F1F] hover:text-white transition-colors duration-200 font-medium;
   }
 
   .category-badge {
@@ -52,11 +53,12 @@
   }
 
   .article-title {
-    @apply font-serif text-xl font-bold leading-tight hover:text-lemonde-blue cursor-pointer;
+    font-family: var(--font-playfair), Georgia, 'Times New Roman', serif;
+    @apply text-xl font-bold leading-tight hover:text-[#D31F1F] cursor-pointer;
   }
 
-  .breaking-news-bar {
-    @apply bg-lemonde-red text-white text-sm py-2;
+  .font-serif {
+    font-family: var(--font-playfair), Georgia, 'Times New Roman', serif !important;
   }
 }
 
@@ -77,5 +79,14 @@
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }

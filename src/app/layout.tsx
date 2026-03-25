@@ -1,14 +1,28 @@
 import type { Metadata, Viewport } from 'next';
+import { Playfair_Display, Inter } from 'next/font/google';
 import './globals.css';
 
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  variable: '--font-playfair',
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000'),
   title: {
-    default: 'Le Monde6 — Actualite, analyses et informations',
+    default: 'Le Monde6 — Actualité, analyses et informations',
     template: '%s | Le Monde6',
   },
   description:
-    "Le Monde6 — Toute l'actualite en France et dans le monde : politique, economie, culture, science, international.",
-  keywords: ['actualite', 'news', 'france', 'politique', 'economie', 'culture', 'science'],
+    "Le Monde6 — Toute l'actualité en France et dans le monde : politique, économie, culture, science, international.",
+  keywords: ['actualité', 'news', 'france', 'politique', 'économie', 'culture', 'science'],
   authors: [{ name: 'Le Monde6' }],
   creator: 'Le Monde6',
   publisher: 'Le Monde6',
@@ -28,8 +42,8 @@ export const metadata: Metadata = {
     locale: 'fr_FR',
     url: process.env.NEXTAUTH_URL || 'http://localhost:3000',
     siteName: 'Le Monde6',
-    title: 'Le Monde6 — Actualite, analyses et informations',
-    description: "Toute l'actualite en France et dans le monde",
+    title: 'Le Monde6 — Actualité, analyses et informations',
+    description: "Toute l'actualité en France et dans le monde",
     images: [
       {
         url: '/og-image.png',
@@ -42,7 +56,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Le Monde6',
-    description: "Toute l'actualite en France et dans le monde",
+    description: "Toute l'actualité en France et dans le monde",
     images: ['/og-image.png'],
   },
   alternates: {
@@ -61,13 +75,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr">
+    <html lang="fr" className={`${playfair.variable} ${inter.variable}`}>
       <head>
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
       </head>
-      <body className="min-h-screen bg-white">
+      <body className="min-h-screen bg-white font-sans">
         {children}
       </body>
     </html>
